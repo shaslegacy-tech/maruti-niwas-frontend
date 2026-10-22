@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f5f6fb;
+  --foreground: #0b1020;
+  --card: rgba(255, 255, 255, 0.75);
+  --border: rgba(15, 23, 42, 0.08);
+  --muted: #5d6882;
+  --accent: #6366f1;
+  --income: #059669;
+  --expense: #e11d48;
+  --warn: #d97706;
+  --glow-a: rgba(99, 102, 241, 0.14);
+  --glow-b: rgba(16, 185, 129, 0.10);
+}
+
+.dark {
+  --background: #070a14;
+  --foreground: #e8ecf8;
+  --card: rgba(255, 255, 255, 0.045);
+  --border: rgba(255, 255, 255, 0.09);
+  --muted: #8b95b0;
+  --accent: #818cf8;
+  --income: #34d399;
+  --expense: #fb7185;
+  --warn: #fbbf24;
+  --glow-a: rgba(99, 102, 241, 0.20);
+  --glow-b: rgba(16, 185, 129, 0.10);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-income: var(--income);
+  --color-expense: var(--expense);
+  --color-warn: var(--warn);
+  --font-sans: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
+}
+
+html { color-scheme: light dark; }
+.dark { color-scheme: dark; }
+
+body {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(60rem 30rem at 85% -10%, var(--glow-a), transparent 60%),
+    radial-gradient(50rem 28rem at -10% 110%, var(--glow-b), transparent 60%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glass card with a soft gradient hairline border */
+.glass {
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px -12px rgba(0, 0, 0, 0.25);
+  border-radius: 1rem;
+}
+
+.field {
+  width: 100%;
+  border-radius: 0.65rem;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.field option { background: var(--background); color: var(--foreground); }
