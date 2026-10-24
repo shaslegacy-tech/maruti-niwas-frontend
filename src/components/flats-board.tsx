@@ -2,12 +2,13 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, ChevronRight, FileText, MessageCircle, Pencil, Undo2, Wallet } from "lucide-react";
-import { type FormEvent, useCallback, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
-  type Flat, type Maintenance, type OccupantType, type PaymentInfo, type PaymentMode,
-  getFlats, getMaintenance, recordPayment, resetPayment, sendReceipt, updateFlat,
+  type Flat, type FlatPaymentResult, type LineKind, type Maintenance, type OccupantType, type PaymentInfo, type PaymentMode, type PaymentPlan,
+  getFlats, getMaintenance, getPaymentPlan, markReceiptShared, payFlat, resetPayment, updateFlat,
 } from "@/lib/api";
 import { inr, shortDate } from "@/lib/format";
+import { prepareReceiptFile, shareReceipt } from "@/lib/share";
 import { Modal } from "./modal";
 
 const BADGE = {
@@ -51,7 +52,11 @@ export function FlatsBoard({ initialFlats, initialRecords, initialYear, initialM
   }
 
   async function undo(r: Maintenance) {
-    if (!confirm(`Clear all payments for Flat ${r.flatNumber}?`)) return;
+    const multi = r.payments.find((p) => p.periods.includes("–") || p.periods.includes(","));
+    const question = multi
+      ? `Clear receipt ${multi.receiptNumber}? It covers ${multi.periods}, so the payment for every one of those months will be cleared.`
+      : `Clear all payments for Flat ${r.flatNumber}?`;
+    if (!confirm(question)) return;
     try { await resetPayment(r.id); await reload(ym.y, ym.m); } catch (e) { setError((e as Error).message); }
   }
 
@@ -160,8 +165,7 @@ export function FlatsBoard({ initialFlats, initialRecords, initialYear, initialM
         </ul>
       </section>
 
-      <PaymentModal record={paying} onClose={() => setPaying(null)}
-                    onSaved={() => { setPaying(null); reload(ym.y, ym.m); }} />
+      <PaymentModal record={paying} onClose={() => setPaying(null)} onChanged={() => reload(ym.y, ym.m)} />
       <EditModal flat={editing} onClose={() => setEditing(null)}
                  onSaved={() => { setEditing(null); reload(ym.y, ym.m); }} />
     </>
@@ -181,53 +185,222 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <label className="block text-xs text-muted"><span className="mb-1 block">{label}</span>{children}</label>;
 }
 
-function PaymentModal({ record, onClose, onSaved }: { record: Maintenance | null; onClose: () => void; onSaved: () => void }) {
+const KIND: Record<LineKind, { label: string; tone: string }> = {
+  ARREARS: { label: "Previous", tone: "bg-warn/15 text-warn" },
+  CURRENT: { label: "This month", tone: "bg-accent/15 text-accent" },
+  ADVANCE: { label: "Advance", tone: "bg-income/15 text-income" },
+};
+
+function PaymentModal({ record, onClose, onChanged }: {
+  record: Maintenance | null; onClose: () => void; onChanged: () => void;
+}) {
+  return (
+    <Modal open={!!record} onClose={onClose} title={record ? `Receive payment · Flat ${record.flatNumber}` : ""}>
+      {record && <PayForm key={record.id} record={record} onClose={onClose} onChanged={onChanged} />}
+    </Modal>
+  );
+}
+
+/**
+ * One payment, one receipt, any number of months. Oldest dues are settled first; anything above what is due
+ * becomes advance payment. The preview comes from the server, so it always matches what will be saved.
+ */
+function PayForm({ record, onClose, onChanged }: { record: Maintenance; onClose: () => void; onChanged: () => void }) {
+  const [amount, setAmount] = useState("");
+  const [onlyThis, setOnlyThis] = useState(false);
+  const [mode, setMode] = useState<PaymentMode>("UPI");
+  const [date, setDate] = useState(todayISO());
+  const [ref, setRef] = useState("");
+  const [plan, setPlan] = useState<PaymentPlan | null>(null);
+  const [planErr, setPlanErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [result, setResult] = useState<FlatPaymentResult | null>(null);
+  const latest = useRef(0);
+  const needDefault = useRef(true);        // fill the amount with what is due, but only the first time
+
+  useEffect(() => {
+    const call = ++latest.current;
+    const wanted = amount.trim() === "" ? undefined : Number(amount);
+    if (wanted === undefined && !needDefault.current) { setPlan(null); setPlanErr(null); return; }
+    if (wanted !== undefined && !(wanted > 0)) { setPlan(null); setPlanErr(null); return; }
+
+    const timer = setTimeout(async () => {
+      try {
+        const p = await getPaymentPlan(record.flatId, wanted, onlyThis ? record.id : undefined);
+        if (call !== latest.current) return;          // a newer request is already on its way
+        setPlan(p);
+        setPlanErr(null);
+        if (wanted === undefined) { needDefault.current = false; setAmount(String(p.amount)); }
+      } catch (e) {
+        if (call !== latest.current) return;
+        setPlan(null);
+        setPlanErr((e as Error).message);
+      }
+    }, wanted === undefined ? 0 : 350);
+    return () => clearTimeout(timer);
+  }, [amount, onlyThis, record.flatId, record.id]);
+
+  function toggleOnly(value: boolean) {
+    needDefault.current = true;
+    setOnlyThis(value);
+    setAmount("");
+  }
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!record) return;
-    const f = new FormData(e.currentTarget);
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     try {
-      await recordPayment(record.id, {
-        amount: Number(f.get("amount")),
-        paymentMode: f.get("mode") as PaymentMode,
-        paymentDate: String(f.get("date")),
-        transactionRef: String(f.get("ref") || "") || undefined,
+      const res = await payFlat({
+        flatId: record.flatId, amount: Number(amount), paymentMode: mode, paymentDate: date,
+        transactionRef: ref.trim() || undefined, onlyRecordId: onlyThis ? record.id : undefined,
       });
-      onSaved();
-    } catch (e) { setErr((e as Error).message); }
-    finally { setBusy(false); }
+      setResult(res);
+      onChanged();                                     // refresh the list behind the dialog
+    } catch (e2) {
+      setErr((e2 as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (result) return <PaidView result={result} onClose={onClose} />;
+
+  const thisMonth = new Date(record.year, record.month - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <p className="text-sm text-muted">{record.ownerName}</p>
+
+      {plan && plan.outstanding.length > 0 && (
+        <div className="rounded-lg bg-foreground/5 p-3 text-xs">
+          <p className="mb-1.5 text-muted">Outstanding <b className="text-foreground">{inr(plan.outstandingTotal)}</b></p>
+          <div className="flex flex-wrap gap-1.5">
+            {plan.outstanding.map((d) => (
+              <span key={d.recordId} className="rounded-md bg-warn/10 px-2 py-0.5 tabular-nums text-warn">
+                {d.label} · {inr(d.balance)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Field label="Amount received (₹)">
+        <input type="number" step="0.01" min="0.01" required value={amount}
+               onChange={(e) => setAmount(e.target.value)} className="field" autoFocus />
+      </Field>
+
+      {(plan?.hasArrears || onlyThis) && (
+        <label className="flex items-start gap-2 text-xs text-muted">
+          <input type="checkbox" checked={onlyThis} onChange={(e) => toggleOnly(e.target.checked)} className="mt-0.5" />
+          <span>Apply to {thisMonth} only (earlier dues stay unpaid)</span>
+        </label>
+      )}
+
+      {planErr && <p className="text-sm text-expense">{planErr}</p>}
+
+      {plan && plan.lines.length > 0 && (
+        <div className="rounded-lg border border-border p-3">
+          <p className="mb-2 text-xs text-muted">
+            {plan.lines.length > 1 ? "One receipt will cover" : "This receipt will cover"}
+          </p>
+          <ul className="space-y-1.5">
+            {plan.lines.map((l) => (
+              <li key={`${l.year}-${l.month}`} className="flex items-center justify-between gap-2 text-sm">
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {l.label}
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${KIND[l.kind].tone}`}>{KIND[l.kind].label}</span>
+                  {l.balanceAfter > 0 && <span className="text-[10px] text-warn">part · {inr(l.balanceAfter)} left</span>}
+                </span>
+                <span className="tabular-nums">{inr(l.amount)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 flex justify-between border-t border-border pt-2 text-sm font-semibold">
+            <span>Total</span><span className="tabular-nums">{inr(plan.amount)}</span>
+          </div>
+          {plan.balanceAfter > 0 && (
+            <p className="mt-1.5 text-xs text-warn">{inr(plan.balanceAfter)} will still be due after this payment</p>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Mode">
+          <select value={mode} onChange={(e) => setMode(e.target.value as PaymentMode)} className="field">
+            <option value="UPI">UPI</option><option value="CASH">Cash</option><option value="BANK_TRANSFER">Bank transfer</option>
+          </select>
+        </Field>
+        <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="field" /></Field>
+      </div>
+      <Field label="Transaction reference (optional)">
+        <input value={ref} onChange={(e) => setRef(e.target.value)} className="field" placeholder="UPI / cheque no." />
+      </Field>
+
+      {err && <p className="text-sm text-expense">{err}</p>}
+      <button disabled={busy || !plan || plan.lines.length === 0}
+              className="w-full rounded-lg bg-accent py-2.5 text-sm font-medium text-white disabled:opacity-60">
+        {busy ? "Saving…" : plan && plan.lines.length > 1 ? `Save payment for ${plan.lines.length} months` : "Save payment"}
+      </button>
+    </form>
+  );
+}
+
+function PaidView({ result, onClose }: { result: FlatPaymentResult; onClose: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  // download the PDF now so the share sheet can open the instant Share is tapped
+  useEffect(() => { prepareReceiptFile(result.receiptPath); }, [result.receiptPath]);
+
+  async function whatsapp() {
+    setNote(null);
+    setBusy(true);
+    try {
+      const how = await shareReceipt(result.receiptPath, result.whatsappShareUrl);
+      if (how === "unavailable") { setNote("Add a phone number to this flat, or open the receipt and share the PDF yourself."); return; }
+      if (how === "cancelled") return;
+      await markReceiptShared(result.paymentId).catch(() => {});
+      setNote(how === "shared" ? "Shared from your phone." : "WhatsApp opened with the message and receipt link. Attach the PDF too if you like.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <Modal open={!!record} onClose={onClose} title={record ? `Record payment · Flat ${record.flatNumber}` : ""}>
-      {record && (
-        <form key={record.id} onSubmit={submit} className="space-y-3">
-          <p className="text-sm text-muted">{record.ownerName} · balance due <b className="text-foreground">{inr(record.balanceDue)}</b></p>
-          <Field label="Amount received (₹)">
-            <input name="amount" type="number" step="0.01" min="0.01" max={record.balanceDue}
-                   defaultValue={record.balanceDue} required className="field" />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Mode">
-              <select name="mode" className="field" defaultValue="UPI">
-                <option value="UPI">UPI</option><option value="CASH">Cash</option>
-                <option value="BANK_TRANSFER">Bank transfer</option>
-              </select>
-            </Field>
-            <Field label="Date"><input name="date" type="date" defaultValue={todayISO()} required className="field" /></Field>
-          </div>
-          <Field label="Transaction reference (optional)"><input name="ref" className="field" placeholder="UPI / cheque no." /></Field>
-          {err && <p className="text-sm text-expense">{err}</p>}
-          <button disabled={busy} className="w-full rounded-lg bg-accent py-2.5 text-sm font-medium text-white disabled:opacity-60">
-            {busy ? "Saving…" : "Save payment"}
-          </button>
-        </form>
-      )}
-    </Modal>
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-income">
+        <Check className="size-5" /><p className="font-medium">Payment recorded</p>
+      </div>
+      <div className="rounded-lg bg-foreground/5 p-3 text-sm">
+        <p className="font-medium">{result.receiptNumber}</p>
+        <ul className="mt-2 space-y-1">
+          {result.lines.map((l) => (
+            <li key={`${l.year}-${l.month}`} className="flex justify-between text-xs">
+              <span className="text-muted">{l.label} · {KIND[l.kind].label.toLowerCase()}{l.settled ? "" : " (part)"}</span>
+              <span className="tabular-nums">{inr(l.amount)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-2 flex justify-between border-t border-border pt-2 font-semibold">
+          <span>Total</span><span className="tabular-nums">{inr(result.total)}</span>
+        </div>
+        {result.flatBalanceAfter > 0 && <p className="mt-1.5 text-xs text-warn">{inr(result.flatBalanceAfter)} still due for this flat</p>}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <a href={result.receiptPath} target="_blank" rel="noopener noreferrer"
+           className="flex items-center justify-center gap-1.5 rounded-lg bg-accent py-2.5 text-sm font-medium text-white">
+          <FileText className="size-4" />Open receipt
+        </a>
+        <button onClick={whatsapp} disabled={busy}
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-income/15 py-2.5 text-sm font-medium text-income disabled:opacity-60">
+          <MessageCircle className="size-4" />{busy ? "Opening…" : "Share on WhatsApp"}
+        </button>
+      </div>
+      {note && <p className="text-xs text-muted">{note}</p>}
+      <button onClick={onClose} className="w-full rounded-lg bg-foreground/8 py-2.5 text-sm font-medium transition hover:bg-foreground/12">Done</button>
+    </div>
   );
 }
 
@@ -293,33 +466,35 @@ function ReceiptChip({ p, onChanged }: { p: PaymentInfo; onChanged: () => void }
 
   async function share() {
     setErr(null);
-    if (!p.whatsappShareUrl) { setErr("Add a phone number to this flat first"); return; }
-    // No credentials configured: open WhatsApp with the message and receipt link already filled in.
-    if (!p.whatsappAutomatic) { window.open(p.whatsappShareUrl, "_blank", "noopener"); return; }
     setBusy(true);
-    try { await sendReceipt(p.id); onChanged(); }
-    catch (e) { setErr((e as Error).message); }
-    finally { setBusy(false); }
+    try {
+      const how = await shareReceipt(p.receiptPath, p.whatsappShareUrl);
+      if (how === "unavailable") { setErr("Add a phone number to this flat first"); return; }
+      if (how === "cancelled") return;
+      await markReceiptShared(p.id).catch(() => {});
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const sent = p.whatsappStatus === "SENT";
-  const label = sent ? "Sent on WhatsApp"
-    : p.whatsappStatus === "FAILED" ? "Retry WhatsApp"
-    : p.whatsappAutomatic ? "Send on WhatsApp" : "Share on WhatsApp";
+  const shared = p.whatsappStatus === "SHARED" || p.whatsappStatus === "SENT";
+  const label = shared ? "Shared on WhatsApp" : "Share on WhatsApp";
+  const warm = () => { prepareReceiptFile(p.receiptPath); };
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-xs">
       <a href={p.receiptPath} target="_blank" rel="noopener noreferrer"
          className="flex items-center gap-1.5 rounded-lg bg-foreground/6 px-2.5 py-1 transition hover:bg-foreground/10">
         <FileText className="size-3.5" />{p.receiptNumber} · {inr(p.amount)}
+        {(p.periods.includes("–") || p.periods.includes(",")) && <span className="text-muted">· {p.periods}</span>}
       </a>
-      <button onClick={share} disabled={busy}
+      <button onClick={share} disabled={busy} onPointerEnter={warm} onFocus={warm} onTouchStart={warm}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition disabled:opacity-60 ${
-                sent ? "bg-income/15 text-income" : "bg-income/10 text-income hover:bg-income/20"}`}>
-        {sent ? <Check className="size-3.5" /> : <MessageCircle className="size-3.5" />}
-        {busy ? "Sending…" : label}
+                shared ? "bg-income/15 text-income" : "bg-income/10 text-income hover:bg-income/20"}`}>
+        {shared ? <Check className="size-3.5" /> : <MessageCircle className="size-3.5" />}
+        {busy ? "Opening…" : label}
       </button>
-      {p.whatsappStatus === "FAILED" && p.whatsappError && <span className="text-expense">{p.whatsappError}</span>}
       {err && <span className="text-expense">{err}</span>}
     </div>
   );

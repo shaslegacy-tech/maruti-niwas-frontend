@@ -169,13 +169,14 @@ export interface PaymentInfo {
   id: number; receiptNumber: string; amount: number; date: string;
   mode: PaymentMode; transactionRef: string | null;
   receiptPath: string;                                   // same-origin link to the PDF
-  whatsappStatus: "NOT_SENT" | "SENT" | "FAILED" | "SKIPPED"; whatsappError: string | null;
-  whatsappAutomatic: boolean;                            // server can send by itself
+  periods: string;                                       // months this receipt covers, e.g. "September 2026 – October 2026"
+  whatsappStatus: "NOT_SENT" | "SHARED" | "SENT" | "FAILED" | "SKIPPED";   // SHARED = opened in WhatsApp by the treasurer
   whatsappShareUrl: string | null;                       // ready-to-send wa.me link (null when no phone saved)
 }
 
-export const sendReceipt = (paymentId: number) =>
-  request<PaymentInfo>(`/api/receipts/${paymentId}/send`, { method: "POST" });
+/** Notes that the receipt was opened in WhatsApp (share sheet or wa.me link). */
+export const markReceiptShared = (paymentId: number) =>
+  request<PaymentInfo>(`/api/receipts/${paymentId}/shared`, { method: "POST" });
 
 // ---- Defaulters & reminders ----
 export type ReminderChannel = "WHATSAPP" | "EMAIL";
@@ -197,7 +198,7 @@ export interface Defaulter {
 export interface DefaultersOverview {
   summary: { flats: number; overdueFlats: number; totalOutstanding: number; overdueAmount: number; oldestDaysOverdue: number };
   defaulters: Defaulter[];
-  whatsappAutomatic: boolean; emailAutomatic: boolean; autoRemindersEnabled: boolean; dueDay: number;
+  emailAutomatic: boolean; autoRemindersEnabled: boolean; dueDay: number;
 }
 export interface ReminderOutcome {
   id: number; flatNumber: string; channel: ReminderChannel; status: ReminderStatus; detail: string | null; at: string;
@@ -210,7 +211,7 @@ export interface RecentReminder {
 
 export const getDefaulters = () => request<DefaultersOverview>("/api/defaulters");
 export const getRecentReminders = () => request<RecentReminder[]>("/api/defaulters/reminders?limit=15");
-/** manual = the treasurer opened WhatsApp / their mail app themselves; false = the server sends it. */
+/** manual = the treasurer opened WhatsApp / their mail app themselves. false = the server sends it (email only). */
 export const remindFlat = (flatId: number, channel: ReminderChannel, manual: boolean) =>
   request<ReminderOutcome>(`/api/defaulters/${flatId}/reminders`, { method: "POST", body: JSON.stringify({ channel, manual }) });
 export const remindAll = () => request<BulkReminderResult>("/api/defaulters/remind-all", { method: "POST" });
@@ -236,3 +237,31 @@ export async function downloadReport(path: string): Promise<void> {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+// ---- Multi-month payments ----
+export type LineKind = "ARREARS" | "CURRENT" | "ADVANCE";
+
+export interface PaymentPlan {
+  flatId: number; flatNumber: string; ownerName: string;
+  amount: number; outstandingTotal: number;
+  outstanding: { recordId: number; year: number; month: number; label: string; balance: number }[];
+  lines: { year: number; month: number; label: string; amount: number; kind: LineKind; balanceAfter: number; created: boolean }[];
+  balanceAfter: number; hasArrears: boolean;
+}
+export interface FlatPaymentResult {
+  paymentId: number; receiptNumber: string; receiptPath: string; periods: string; total: number;
+  lines: { year: number; month: number; label: string; amount: number; kind: LineKind; settled: boolean }[];
+  flatBalanceAfter: number; whatsappShareUrl: string | null;
+}
+
+/** How an amount would be split across months (oldest dues first). Saves nothing. */
+export const getPaymentPlan = (flatId: number, amount?: number, onlyRecordId?: number) =>
+  request<PaymentPlan>(
+    `/api/maintenance/plan?flatId=${flatId}` +
+    (amount !== undefined ? `&amount=${amount}` : "") +
+    (onlyRecordId !== undefined ? `&onlyRecordId=${onlyRecordId}` : ""));
+
+export const payFlat = (body: {
+  flatId: number; amount: number; paymentMode: PaymentMode; paymentDate?: string;
+  transactionRef?: string; remarks?: string; onlyRecordId?: number;
+}) => request<FlatPaymentResult>("/api/maintenance/pay", { method: "POST", body: JSON.stringify(body) });

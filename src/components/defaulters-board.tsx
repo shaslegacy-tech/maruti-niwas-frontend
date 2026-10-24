@@ -27,6 +27,8 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [queue, setQueue] = useState<Defaulter[] | null>(null);
+  const [pos, setPos] = useState(0);
 
   const reload = useCallback(async () => {
     try {
@@ -44,36 +46,49 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
         : `Flat ${d.flatNumber} has no email address saved. Add it on the Flats page.`);
       return;
     }
-    const automatic = channel === "WHATSAPP" ? data.whatsappAutomatic : data.emailAutomatic;
-    // Without server credentials, hand the prepared message to the treasurer's own WhatsApp / mail app.
-    if (!automatic) {
+    // WhatsApp is always opened by the treasurer (a wa.me link). Email is sent by the server when SMTP is set up.
+    const bySever = channel === "EMAIL" && data.emailAutomatic;
+    if (!bySever) {
       if (channel === "WHATSAPP") window.open(url, "_blank", "noopener");
       else window.location.href = url;
     }
     setBusy(`${d.flatId}:${channel}`);
     try {
-      const out = await remindFlat(d.flatId, channel, !automatic);
+      const out = await remindFlat(d.flatId, channel, !bySever);
       if (out.status === "FAILED") setError(`Flat ${d.flatNumber}: ${out.detail ?? "the reminder could not be sent"}`);
-      else setNotice(out.status === "SENT" ? `Reminder sent to Flat ${d.flatNumber}` : `Flat ${d.flatNumber}: message opened. Press send in your app.`);
+      else setNotice(out.status === "SENT" ? `Email sent to Flat ${d.flatNumber}` : `Flat ${d.flatNumber}: message opened. Press send in your app.`);
       await reload();
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(null); }
   }
 
-  async function sendAll() {
-    const n = data.summary.overdueFlats;
-    if (!confirm(`Send a reminder to every overdue flat (${n}) that wasn’t reminded in the last 24 hours?`)) return;
+  /** Emails every overdue flat that has an address (only when SMTP is configured). */
+  async function emailAll() {
+    if (!confirm("Email a reminder to every overdue flat that has an email address and wasn’t reminded in the last 24 hours?")) return;
     setError(null); setNotice(null); setBusy("all");
     try {
       const r = await remindAll();
-      setNotice(`Sent ${r.sent} · failed ${r.failed} · skipped ${r.skipped}` + (r.notes.length ? ` (${r.notes.slice(0, 2).join("; ")}${r.notes.length > 2 ? "…" : ""})` : ""));
+      setNotice(`Emailed ${r.sent} · failed ${r.failed} · skipped ${r.skipped}` + (r.notes.length ? ` (${r.notes.slice(0, 2).join("; ")}${r.notes.length > 2 ? "…" : ""})` : ""));
       await reload();
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(null); }
   }
 
+  // ---- WhatsApp, one flat at a time: links cannot be sent in bulk, so each is opened with a tap ----
+  async function openCurrent() {
+    if (!queue || pos >= queue.length) return;
+    const d = queue[pos];
+    window.open(d.whatsappUrl!, "_blank", "noopener");        // must happen inside the tap
+    setPos((n) => n + 1);
+    try { await remindFlat(d.flatId, "WHATSAPP", true); } catch { /* the message is already open; logging can fail quietly */ }
+    reload();
+  }
+
   const { summary } = data;
-  const anyAutomatic = data.whatsappAutomatic || data.emailAutomatic;
+  const dayAgo = Date.now() - 86_400_000;
+  const waList = data.defaulters.filter((d) =>
+    d.overdueAmount > 0 && d.whatsappUrl && (!d.lastReminder || new Date(d.lastReminder.at).getTime() < dayAgo));
+  const emailList = data.defaulters.filter((d) => d.overdueAmount > 0 && d.email);
   const shown = tab === "overdue" ? data.defaulters.filter((d) => d.overdueAmount > 0) : data.defaulters;
 
   return (
@@ -83,12 +98,19 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
           <h1 className="text-2xl font-semibold tracking-tight">Defaulters</h1>
           <p className="text-sm text-muted">Flats with unpaid maintenance · overdue after the {data.dueDay}th of the month</p>
         </div>
-        {anyAutomatic && summary.overdueFlats > 0 && (
-          <button onClick={sendAll} disabled={busy === "all"}
-                  className="rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60">
-            {busy === "all" ? "Sending…" : `Remind all overdue (${summary.overdueFlats})`}
+        <div className="flex flex-wrap gap-2">
+          {data.emailAutomatic && emailList.length > 0 && (
+            <button onClick={emailAll} disabled={busy === "all"}
+                    className="flex items-center gap-1.5 rounded-xl bg-accent/12 px-4 py-2.5 text-sm font-medium text-accent transition hover:bg-accent/20 disabled:opacity-60">
+              <Mail className="size-4" />{busy === "all" ? "Sending…" : `Email all overdue (${emailList.length})`}
+            </button>
+          )}
+          <button onClick={() => { setQueue(waList); setPos(0); }} disabled={waList.length === 0}
+                  className="flex items-center gap-1.5 rounded-xl bg-income px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                  title={waList.length === 0 ? "No overdue flat with a phone number is waiting for a reminder" : ""}>
+            <MessageCircle className="size-4" />Remind overdue on WhatsApp ({waList.length})
           </button>
-        )}
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -97,6 +119,38 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
         <Tile label="Total outstanding" value={inr(summary.totalOutstanding)} tone="text-warn" />
         <Tile label="Longest overdue" value={summary.oldestDaysOverdue > 0 ? `${summary.oldestDaysOverdue} days` : "None"} />
       </div>
+
+      {queue && (
+        <div className="glass mb-4 p-5">
+          {pos < queue.length ? (
+            <>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-medium">WhatsApp reminders · {pos + 1} of {queue.length}</p>
+                <button onClick={() => setQueue(null)} className="text-xs text-muted hover:text-foreground">Stop</button>
+              </div>
+              <p className="text-sm">
+                <b>Flat {queue[pos].flatNumber}</b> · {queue[pos].ownerName} · <span className="text-expense">{inr(queue[pos].totalOutstanding)}</span>
+              </p>
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-foreground/5 p-3 text-xs font-sans text-muted">
+                {new URL(queue[pos].whatsappUrl!).searchParams.get("text")}
+              </pre>
+              <div className="mt-3 flex gap-2">
+                <button onClick={openCurrent}
+                        className="flex items-center gap-1.5 rounded-lg bg-income px-4 py-2 text-sm font-medium text-white">
+                  <MessageCircle className="size-4" />Open WhatsApp
+                </button>
+                <button onClick={() => setPos((n) => n + 1)} className="rounded-lg bg-foreground/8 px-4 py-2 text-sm">Skip</button>
+              </div>
+              <p className="mt-2 text-xs text-muted">WhatsApp opens with this message ready. Press send there, then come back for the next flat.</p>
+            </>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="flex items-center gap-2 text-sm text-income"><Check className="size-4" />All {queue.length} reminders opened</p>
+              <button onClick={() => setQueue(null)} className="rounded-lg bg-foreground/8 px-4 py-2 text-sm">Close</button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mb-3 flex gap-1.5">
         {([["overdue", "Overdue"], ["all", "All pending"]] as const).map(([key, label]) => (
@@ -182,9 +236,10 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
       </section>
 
       <p className="mt-3 text-xs text-muted">
-        {anyAutomatic
-          ? `Reminders are sent from the server. ${data.autoRemindersEnabled ? "A daily job (10:00) also reminds overdue flats automatically." : "Turn on app.reminders.auto-enabled to remind overdue flats every day automatically."}`
-          : "Reminders open in your own WhatsApp or email app with the message already written. Add WhatsApp Business or email (SMTP) credentials to send them from the server instead."}
+        WhatsApp reminders open in your own WhatsApp with the message already written; press send there.
+        {data.emailAutomatic
+          ? ` Emails are sent from the server. ${data.autoRemindersEnabled ? "A daily job (10:00) also emails overdue flats automatically." : "Turn on app.reminders.auto-enabled to email overdue flats every day automatically."}`
+          : " Email also opens in your mail app. To send emails from the server, add SMTP settings (spring.mail.*)."}
       </p>
 
       <section className="glass mt-6 p-5">

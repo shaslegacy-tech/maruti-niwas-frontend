@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const TONE: Record<string, string> = {
   CREATE: "bg-income/15 text-income", PAYMENT: "bg-income/15 text-income", LOGIN: "bg-foreground/10 text-muted",
   UPDATE: "bg-warn/15 text-warn", CLOSE_MONTH: "bg-warn/15 text-warn", REOPEN_MONTH: "bg-warn/15 text-warn",
-  GENERATE: "bg-foreground/10 text-muted", SEND_RECEIPT: "bg-foreground/10 text-muted", REMINDER: "bg-warn/15 text-warn", EXPORT: "bg-foreground/10 text-muted", RECONCILE: "bg-income/15 text-income", ADJUST: "bg-warn/15 text-warn",
+  GENERATE: "bg-foreground/10 text-muted", SEND_RECEIPT: "bg-foreground/10 text-muted", SHARE_RECEIPT: "bg-foreground/10 text-muted", REMINDER: "bg-warn/15 text-warn", EXPORT: "bg-foreground/10 text-muted", RECONCILE: "bg-income/15 text-income", ADJUST: "bg-warn/15 text-warn",
   DELETE: "bg-expense/15 text-expense", RESET: "bg-expense/15 text-expense",
   DEACTIVATE: "bg-expense/15 text-expense", LOGIN_FAILED: "bg-expense/15 text-expense",
 };
