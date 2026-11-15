@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Building2, Download, FolderOpen, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LogOut, Megaphone, MessageSquareWarning, Receipt, ScrollText, ShieldCheck, UserCog, Users } from "lucide-react";
+import { Bell, Building2, Contact, Download, FolderOpen, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LogOut, Megaphone, MessageSquareWarning, Receipt, ScrollText, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Me } from "@/lib/api";
@@ -18,6 +18,7 @@ const ITEMS = [
   { href: "/documents", label: "Documents", icon: FolderOpen, roles: RESIDENT },
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: COMMITTEE },
   { href: "/flats", label: "Flats", icon: Users, roles: COMMITTEE },
+  { href: "/members", label: "Members", icon: Contact, roles: COMMITTEE },
   { href: "/residents", label: "Residents", icon: KeyRound, roles: TREASURER },
   { href: "/committee", label: "Committee", icon: UserCog, roles: TREASURER },
   { href: "/claims", label: "Payment proofs", icon: Inbox, roles: TREASURER },

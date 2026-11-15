@@ -1,8 +1,9 @@
 import type { DocumentCategory } from "@/lib/api";
 
 export const DOC_LABEL: Record<DocumentCategory, string> = {
-  NOTICE: "Society notice", MINUTES: "Meeting minutes", RULES: "Rules & bylaws",
-  IMPORTANT: "Important document", FINANCIAL: "Financial (private)", OTHER: "Other",
+  NOTICE: "Society notice", CIRCULAR: "Circular", MINUTES: "Meeting minutes", RESOLUTION: "Resolution",
+  RULES: "Rules & bylaws", REGISTRATION: "Society registration", IMPORTANT: "Important document",
+  FINANCIAL: "Financial (private)", OTHER: "Other",
 };
 
 /** Matches the server: these stay with the staff unless someone deliberately shares them. */

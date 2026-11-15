@@ -45,8 +45,8 @@ export function CommitteeBoard({ initial }: { initial: CommitteeMember[] }) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Committee</h1>
           <p className="max-w-2xl text-sm text-muted">
-            Secretary and Chairman logins. They can view the books and reports but never change them, and they can handle
-            notices, complaints and documents. Financial documents stay hidden from them unless you allow it.
+            Secretary and Chairman logins. They can view the books and reports but never change them. The Secretary also
+            maintains members, notices and documents. Financial documents stay hidden from them unless you allow it.
           </p>
         </div>
         <button onClick={() => setAdding(true)}

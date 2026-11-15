@@ -409,7 +409,7 @@ export const setComplaintStatus = (id: number, status: ComplaintStatus, note?: s
   request<ComplaintDetail>(`/api/complaints/${id}/status`, { method: "POST", body: JSON.stringify({ status, note }) });
 
 // ---- Documents ----
-export type DocumentCategory = "NOTICE" | "MINUTES" | "RULES" | "IMPORTANT" | "FINANCIAL" | "OTHER";
+export type DocumentCategory = "NOTICE" | "MINUTES" | "RULES" | "IMPORTANT" | "FINANCIAL" | "OTHER" | "REGISTRATION" | "RESOLUTION" | "CIRCULAR";
 export interface ResidentDocument {
   id: number; title: string; category: DocumentCategory; description: string | null; docDate: string | null;
   fileType: string; sizeBytes: number; createdAt: string;
@@ -441,3 +441,30 @@ export const resetCommitteePassword = (id: number) =>
   request<ResidentCredentials>(`/api/committee/${id}/credentials`, { method: "POST" });
 export const updateCommitteeMember = (id: number, b: { active?: boolean; canViewFinancial?: boolean }) =>
   request<CommitteeMember>(`/api/committee/${id}`, { method: "PUT", body: JSON.stringify(b) });
+
+// ---- Members, family, flat and ownership information ----
+export type MemberRelation = "CO_OWNER" | "SPOUSE" | "CHILD" | "PARENT" | "SIBLING" | "TENANT" | "OTHER";
+export interface MemberView {
+  id: number; flatId: number; fullName: string; relation: MemberRelation;
+  phone: string | null; email: string | null; notes: string | null;
+}
+export interface FlatDirectoryEntry {
+  flatId: number; flatNumber: string; ownerName: string; phoneNumber: string | null; email: string | null;
+  occupantType: "OWNER" | "TENANT" | "VACANT"; floorNo: number | null; areaSqFt: number | null;
+  parkingSlot: string | null; ownershipSince: string | null; shareCertificateNo: string | null;
+  ownershipNotes: string | null; members: MemberView[];
+}
+export interface FlatDetailsInput {
+  ownerName: string; phoneNumber?: string; email?: string; occupantType: "OWNER" | "TENANT" | "VACANT";
+  floorNo?: number; areaSqFt?: number; parkingSlot?: string; ownershipSince?: string;
+  shareCertificateNo?: string; ownershipNotes?: string;
+}
+export interface MemberInput { fullName: string; relation: MemberRelation; phone?: string; email?: string; notes?: string }
+export const getMembers = () => request<FlatDirectoryEntry[]>("/api/members");
+export const updateFlatDetails = (flatId: number, b: FlatDetailsInput) =>
+  request<FlatDirectoryEntry>(`/api/members/flats/${flatId}`, { method: "PUT", body: JSON.stringify(b) });
+export const addMember = (flatId: number, b: MemberInput) =>
+  request<MemberView>(`/api/members/flats/${flatId}/people`, { method: "POST", body: JSON.stringify(b) });
+export const updateMember = (id: number, b: MemberInput) =>
+  request<MemberView>(`/api/members/people/${id}`, { method: "PUT", body: JSON.stringify(b) });
+export const removeMember = (id: number) => request<void>(`/api/members/people/${id}`, { method: "DELETE" });

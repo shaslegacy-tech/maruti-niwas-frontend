@@ -7,8 +7,11 @@ import { docDate, fileSize } from "./documents-shared";
 
 const GROUPS: { key: DocumentCategory; title: string }[] = [
   { key: "NOTICE", title: "Society notices" },
+  { key: "CIRCULAR", title: "Circulars" },
   { key: "MINUTES", title: "Meeting minutes" },
+  { key: "RESOLUTION", title: "Resolutions" },
   { key: "RULES", title: "Rules & bylaws" },
+  { key: "REGISTRATION", title: "Society registration" },
   { key: "IMPORTANT", title: "Important documents" },
   { key: "OTHER", title: "Other documents" },
   { key: "FINANCIAL", title: "Financial documents" },
