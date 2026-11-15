@@ -1,0 +1,61 @@
+import { Clock, Inbox, Landmark, MessageSquareWarning, TrendingDown, Users } from "lucide-react";
+import Link from "next/link";
+import { CashFlowChart } from "@/components/cash-flow-chart";
+import { RecentFeed } from "@/components/recent-feed";
+import { StatCard } from "@/components/stat-card";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { getClaimsSummary, getComplaintsSummary, getDashboard } from "@/lib/api.server";
+import { inr } from "@/lib/format";
+
+export async function DashboardView() {
+  const d = await getDashboard();
+  const claims = await getClaimsSummary();
+  const complaints = await getComplaintsSummary();
+  const rate = d.totalFlats ? d.flatsPaid / d.totalFlats : 0;
+
+  return (
+    <>
+      <header className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted">{d.monthLabel}</p>
+        </div>
+        <ThemeToggle />
+      </header>
+
+      {complaints.active > 0 && (
+        <Link href="/complaints"
+              className="mb-4 flex items-center gap-3 rounded-xl bg-expense/10 px-4 py-3 text-sm text-expense transition hover:bg-expense/15">
+          <MessageSquareWarning className="size-4" />
+          <span><b>{complaints.active}</b> open complaint{complaints.active > 1 ? "s" : ""} from residents</span>
+          <span className="ml-auto text-xs underline">Open</span>
+        </Link>
+      )}
+
+      {claims.pending > 0 && (
+        <Link href="/claims"
+              className="mb-4 flex items-center gap-3 rounded-xl bg-warn/10 px-4 py-3 text-sm text-warn transition hover:bg-warn/15">
+          <Inbox className="size-4" />
+          <span><b>{claims.pending}</b> resident payment{claims.pending > 1 ? "s" : ""} waiting for your review</span>
+          <span className="ml-auto text-xs underline">Review</span>
+        </Link>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard index={0} label="Total balance" value={d.totalBalance} icon={<Landmark className="size-4" />}
+                  hint={`Cash ${inr(d.cashBalance)} · Bank ${inr(d.bankBalance)}`} />
+        <StatCard index={1} label="Collection rate" kind="plain" value={d.flatsPaid} suffix={`/ ${d.totalFlats} flats`}
+                  tone="income" progress={rate} icon={<Users className="size-4" />} />
+        <StatCard index={2} label="Expenses this month" value={d.monthExpenses} tone="expense"
+                  icon={<TrendingDown className="size-4" />} />
+        <StatCard index={3} label="Pending dues" value={d.pendingDues} tone="warn"
+                  icon={<Clock className="size-4" />} hint="All unpaid maintenance" />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-3"><CashFlowChart data={d.chart} /></div>
+        <div className="lg:col-span-2"><RecentFeed items={d.recent} /></div>
+      </div>
+    </>
+  );
+}

@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { AuditEntry, BalanceOverview, Categories, DefaultersOverview, RecentReminder, Reconciliation, Dashboard, Flat, Maintenance, Summary, Transaction } from "./api";
+import type { AuditEntry, BalanceOverview, ComplaintSummary, Me, Notice, ResidentDocument, StaffClaim, StaffDocument, ResidentHome, ResidentLogin, Categories, DefaultersOverview, RecentReminder, Reconciliation, Dashboard, Flat, Maintenance, Summary, Transaction } from "./api";
 
 const API = process.env.API_URL ?? "http://localhost:8080";
 
@@ -28,3 +28,14 @@ export const getBalanceOverview = () => get<BalanceOverview>("/api/balances/over
 export const getReconciliation = (y: number, m: number) => get<Reconciliation>(`/api/balances/months/${y}/${m}`);
 export const getDefaulters = () => get<DefaultersOverview>("/api/defaulters");
 export const getRecentReminders = () => get<RecentReminder[]>("/api/defaulters/reminders?limit=15");
+export const getMe = () => get<Me>("/api/auth/me");
+export const getResidents = () => get<ResidentLogin[]>("/api/residents");
+export const getResidentHome = () => get<ResidentHome>("/api/me/home");
+export const getNotices = () => get<Notice[]>("/api/notices");
+export const getClaims = () => get<StaffClaim[]>("/api/payment-claims?limit=60");
+export const getClaimsSummary = () => get<{ pending: number }>("/api/payment-claims/summary");
+export const getMyComplaints = () => get<ComplaintSummary[]>("/api/me/complaints");
+export const getComplaints = () => get<ComplaintSummary[]>("/api/complaints?limit=100");
+export const getComplaintsSummary = () => get<{ active: number }>("/api/complaints/summary");
+export const getMyDocuments = () => get<ResidentDocument[]>("/api/me/documents");
+export const getDocuments = () => get<StaffDocument[]>("/api/documents");

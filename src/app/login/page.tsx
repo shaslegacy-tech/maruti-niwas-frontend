@@ -16,8 +16,8 @@ export default function LoginPage() {
     const f = new FormData(e.currentTarget);
     setBusy(true); setError(null);
     try {
-      await login(String(f.get("username")), String(f.get("password")));
-      router.replace("/");
+      const me = await login(String(f.get("username")), String(f.get("password")));
+      router.replace(me.mustChangePassword ? "/change-password" : "/");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -34,7 +34,7 @@ export default function LoginPage() {
             <Building2 className="size-6" />
           </span>
           <h1 className="text-lg font-semibold">Maruti Niwas</h1>
-          <p className="text-sm text-muted">Treasurer sign in</p>
+          <p className="text-sm text-muted">Sign in to your account</p>
         </div>
         <label className="block text-xs text-muted">
           <span className="mb-1 block">Username</span>

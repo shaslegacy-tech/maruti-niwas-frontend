@@ -8,7 +8,7 @@ export default function ErrorPage({ reset }: { error: Error; reset: () => void }
       <AlertTriangle className="mx-auto mb-3 size-8 text-warn" />
       <h1 className="font-semibold">Couldn’t load this page</h1>
       <p className="mt-2 text-sm text-muted">
-        Check that the Spring Boot backend is running, then try again.
+        You may not have access to this page, or the backend is not running. Try again, or go back to the home screen.
       </p>
       <button onClick={reset} className="mt-5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white">
         Try again

@@ -114,7 +114,11 @@ export const reopenMonth = (year: number, month: number) =>
   request<Summary>(`/api/summaries/${year}/${month}/reopen`, { method: "POST" });
 
 // ---- Auth ----
-export interface Me { id: number | null; username: string; fullName: string; roles: string[] }
+export interface Me {
+  id: number | null; username: string; fullName: string; roles: string[];
+  mustChangePassword: boolean;      // a new or reset login: the password must be changed first
+  flatId: number | null;            // set for resident logins
+}
 
 export const login = (username: string, password: string) =>
   request<Me>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
@@ -265,3 +269,160 @@ export const payFlat = (body: {
   flatId: number; amount: number; paymentMode: PaymentMode; paymentDate?: string;
   transactionRef?: string; remarks?: string; onlyRecordId?: number;
 }) => request<FlatPaymentResult>("/api/maintenance/pay", { method: "POST", body: JSON.stringify(body) });
+
+// ---- Account ----
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  request<Me>("/api/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) });
+
+// ---- Resident logins (treasurer) ----
+export interface ResidentLogin {
+  flatId: number; flatNumber: string; ownerName: string; phoneNumber: string | null; email: string | null;
+  hasLogin: boolean; username: string | null; active: boolean; mustChangePassword: boolean; lastLoginAt: string | null;
+}
+export interface ResidentCredentials {
+  username: string; temporaryPassword: string; loginUrl: string; message: string; whatsappUrl: string | null;
+}
+export const getResidents = () => request<ResidentLogin[]>("/api/residents");
+export const createResidentLogin = (flatId: number) =>
+  request<ResidentCredentials>(`/api/residents/${flatId}/credentials`, { method: "POST" });
+export const setResidentActive = (flatId: number, active: boolean) =>
+  request<ResidentLogin>(`/api/residents/${flatId}/active`, { method: "PUT", body: JSON.stringify({ active }) });
+
+// ---- Resident portal (a resident's own flat) ----
+export type NoticeKind = "NOTICE" | "ANNOUNCEMENT" | "MEETING";
+export type ClaimStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface NoticeItem {
+  id: number; kind: NoticeKind; title: string; body: string; pinned: boolean;
+  postedAt: string; meetingAt: string | null; venue: string | null;
+}
+/** A payment the resident has told the treasurer about. mode is UPI, CASH or BANK_TRANSFER. */
+export interface ResidentClaim {
+  id: number; amount: number; paidOn: string; mode: string; reference: string | null; note: string | null;
+  status: ClaimStatus; reviewNote: string | null; receiptNumber: string | null; submittedAt: string; hasProof: boolean;
+}
+export interface ResidentHome {
+  flat: { flatNumber: string; ownerName: string; phoneNumber: string | null; email: string | null;
+          occupantType: string; monthlyFee: number; societyName: string };
+  outstandingTotal: number; overdueAmount: number; dueDay: number;
+  currentMonth: { label: string; status: PaymentStatus; amount: number; balance: number; dueDate: string;
+                  overdue: boolean; paymentDate: string | null } | null;
+  paidThisYear: number; yearLabel: string;
+  months: { year: number; month: number; label: string; amount: number; paid: number; balance: number;
+            status: PaymentStatus; overdue: boolean; dueDate: string; paymentDate: string | null }[];
+  receipts: { receiptNumber: string; date: string; amount: number; periods: string; mode: string;
+              reference: string | null; receiptPath: string }[];
+  claims: ResidentClaim[];
+  notices: NoticeItem[];          // notices and announcements
+  meetings: NoticeItem[];         // upcoming only
+  payTo: { societyName: string; upiId: string | null; payeeName: string | null; bankName: string | null;
+           accountName: string | null; accountNumber: string | null; ifsc: string | null; branch: string | null };
+}
+export const updateMyContact = (phoneNumber: string, email: string) =>
+  request<ResidentHome["flat"]>("/api/me/contact", { method: "PUT", body: JSON.stringify({ phoneNumber, email }) });
+
+/** "I have paid": sends payment details (and an optional screenshot) to the treasurer. Changes no balance. */
+export async function submitPaymentProof(form: FormData): Promise<ResidentClaim> {
+  const res = await fetch("/api/me/payments", { method: "POST", body: form });   // the browser sets the multipart header
+  if (res.status === 401) { window.location.href = "/login"; throw new ApiError(401, "Session expired"); }
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.error ?? "Could not send your payment details");
+  }
+  return res.json();
+}
+export const cancelMyClaim = (id: number) => request<void>(`/api/me/payments/${id}/cancel`, { method: "POST" });
+
+// ---- Notices (staff) ----
+export interface Notice {
+  id: number; kind: NoticeKind; title: string; body: string; pinned: boolean;
+  publishAt: string; expiresAt: string | null; meetingAt: string | null; venue: string | null;
+  createdBy: string; live: boolean; whatsappShareUrl: string;
+}
+export interface NoticeInput {
+  kind: NoticeKind; title: string; body: string; pinned: boolean;
+  publishAt?: string; expiresAt?: string; meetingAt?: string; venue?: string;
+}
+export const getNotices = () => request<Notice[]>("/api/notices");
+export const createNotice = (b: NoticeInput) => request<Notice>("/api/notices", { method: "POST", body: JSON.stringify(b) });
+export const updateNotice = (id: number, b: NoticeInput) =>
+  request<Notice>(`/api/notices/${id}`, { method: "PUT", body: JSON.stringify(b) });
+export const deleteNotice = (id: number) => request<void>(`/api/notices/${id}`, { method: "DELETE" });
+
+// ---- Payment claims (treasurer) ----
+export interface StaffClaim {
+  id: number; flatId: number; flatNumber: string; ownerName: string;
+  amount: number; paidOn: string; mode: string; reference: string | null; note: string | null;
+  status: ClaimStatus; reviewNote: string | null; reviewedBy: string | null; reviewedAt: string | null;
+  receiptNumber: string | null; submittedAt: string;
+  hasProof: boolean; proofType: string | null; proofPath: string | null;
+  duplicateReference: boolean; flatOutstanding: number;
+}
+export const getClaims = () => request<StaffClaim[]>("/api/payment-claims?limit=60");
+export const approveClaim = (id: number, body: { amount?: number; mode?: PaymentMode; paymentDate?: string; reference?: string }) =>
+  request<StaffClaim>(`/api/payment-claims/${id}/approve`, { method: "POST", body: JSON.stringify(body) });
+export const rejectClaim = (id: number, reason: string) =>
+  request<StaffClaim>(`/api/payment-claims/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+
+// ---- multipart posts (photos, documents) ----
+async function postForm<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(path, { method: "POST", body: form });   // the browser sets the multipart header itself
+  if (res.status === 401) { window.location.href = "/login"; throw new ApiError(401, "Session expired"); }
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.error ?? "That did not work. Please try again.");
+  }
+  return res.json();
+}
+
+// ---- Complaints ----
+export type ComplaintStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+export type ComplaintCategory = "PLUMBING" | "ELECTRICAL" | "LIFT" | "CLEANING" | "SECURITY" | "PARKING" | "WATER" | "NOISE" | "OTHER";
+export interface AttachmentMeta { id: number; commentId: number | null; name: string; type: string; sizeBytes: number }
+export interface ComplaintSummary {
+  id: number; flatId: number; flatNumber: string; ownerName: string;
+  category: ComplaintCategory; title: string; status: ComplaintStatus;
+  createdAt: string; lastActivityAt: string; resolvedAt: string | null; replies: number;
+}
+export interface ComplaintEntry {
+  id: number; authorName: string; authorType: "RESIDENT" | "STAFF"; kind: "COMMENT" | "STATUS";
+  body: string | null; statusTo: ComplaintStatus | null; createdAt: string; attachments: AttachmentMeta[];
+}
+export interface ComplaintDetail {
+  summary: ComplaintSummary; description: string; attachments: AttachmentMeta[]; thread: ComplaintEntry[];
+}
+
+// resident
+export const getMyComplaints = () => request<ComplaintSummary[]>("/api/me/complaints");
+export const getMyComplaint = (id: number) => request<ComplaintDetail>(`/api/me/complaints/${id}`);
+export const createComplaint = (form: FormData) => postForm<ComplaintDetail>("/api/me/complaints", form);
+export const commentOnComplaint = (id: number, form: FormData) => postForm<ComplaintDetail>(`/api/me/complaints/${id}/comments`, form);
+export const confirmComplaint = (id: number) => request<ComplaintDetail>(`/api/me/complaints/${id}/confirm`, { method: "POST" });
+export const reopenComplaint = (id: number, reason: string) =>
+  request<ComplaintDetail>(`/api/me/complaints/${id}/reopen?reason=${encodeURIComponent(reason)}`, { method: "POST" });
+// staff
+export const getComplaints = () => request<ComplaintSummary[]>("/api/complaints?limit=100");
+export const getComplaintDetail = (id: number) => request<ComplaintDetail>(`/api/complaints/${id}`);
+export const replyToComplaint = (id: number, form: FormData) => postForm<ComplaintDetail>(`/api/complaints/${id}/replies`, form);
+export const setComplaintStatus = (id: number, status: ComplaintStatus, note?: string) =>
+  request<ComplaintDetail>(`/api/complaints/${id}/status`, { method: "POST", body: JSON.stringify({ status, note }) });
+
+// ---- Documents ----
+export type DocumentCategory = "NOTICE" | "MINUTES" | "RULES" | "IMPORTANT" | "FINANCIAL" | "OTHER";
+export interface ResidentDocument {
+  id: number; title: string; category: DocumentCategory; description: string | null; docDate: string | null;
+  fileType: string; sizeBytes: number; createdAt: string;
+}
+export interface StaffDocument {
+  id: number; title: string; category: DocumentCategory; description: string | null; docDate: string | null;
+  visibility: "RESIDENTS" | "STAFF"; sensitive: boolean; sharedWithResidents: boolean;
+  fileName: string; fileType: string; sizeBytes: number; uploadedBy: string; createdAt: string;
+}
+export const getMyDocuments = () => request<ResidentDocument[]>("/api/me/documents");
+export const getDocuments = () => request<StaffDocument[]>("/api/documents");
+export const uploadDocument = (form: FormData) => postForm<StaffDocument>("/api/documents", form);
+export const updateDocument = (id: number, body: {
+  title: string; category: DocumentCategory; description?: string; docDate?: string;
+  visibility: "RESIDENTS" | "STAFF"; confirmSensitive: boolean;
+}) => request<StaffDocument>(`/api/documents/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const deleteDocument = (id: number) => request<void>(`/api/documents/${id}`, { method: "DELETE" });

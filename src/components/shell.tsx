@@ -1,23 +1,31 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { type Me, getMe, logout } from "@/lib/api";
 import { MobileNav, Sidebar } from "./nav";
 
 export function Shell({ children }: { children: ReactNode }) {
-  const onLogin = usePathname() === "/login";
+  const path = usePathname();
+  const router = useRouter();
+  const bare = path === "/login" || path === "/change-password";     // no sidebar on these
   const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
-    if (!onLogin) getMe().then(setMe).catch(() => {});
-  }, [onLogin]);
+    if (bare) return;
+    getMe()
+      .then((m) => {
+        setMe(m);
+        if (m.mustChangePassword) router.replace("/change-password");
+      })
+      .catch(() => {});
+  }, [bare, router]);
 
   async function signOut() {
     try { await logout(); } finally { window.location.href = "/login"; }
   }
 
-  if (onLogin) return <>{children}</>;
+  if (bare) return <>{children}</>;
 
   return (
     <>
