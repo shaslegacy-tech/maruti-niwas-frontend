@@ -23,9 +23,11 @@ const monthName = (y: number, m: number) =>
 
 interface Props {
   initialFlats: Flat[]; initialRecords: Maintenance[]; initialYear: number; initialMonth: number;
+  /** Secretary and Chairman see everything but cannot change anything. */
+  readOnly?: boolean;
 }
 
-export function FlatsBoard({ initialFlats, initialRecords, initialYear, initialMonth }: Props) {
+export function FlatsBoard({ initialFlats, initialRecords, initialYear, initialMonth, readOnly = false }: Props) {
   const [flats, setFlats] = useState(initialFlats);
   const [records, setRecords] = useState(initialRecords);
   const [ym, setYm] = useState({ y: initialYear, m: initialMonth });
@@ -117,7 +119,7 @@ export function FlatsBoard({ initialFlats, initialRecords, initialYear, initialM
                   </p>
                 </div>
                 <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-                  {r.status !== "PAID" ? (
+                  {r.status !== "PAID" ? (readOnly ? null : (
                     <>
                       <button onClick={() => setPaying(r)}
                               className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90">
@@ -135,27 +137,30 @@ export function FlatsBoard({ initialFlats, initialRecords, initialYear, initialM
                         </button>
                       )}
                     </>
-                  ) : (
+                  )) : (
                     <span className="text-xs text-muted">
                       {r.paymentMode && MODE[r.paymentMode]}{r.paymentDate && ` · ${shortDate(r.paymentDate)}`}
                     </span>
                   )}
-                  {r.amountPaid > 0 && (
+                  {!readOnly && r.amountPaid > 0 && (
                     <button onClick={() => undo(r)} aria-label="Undo payment" title="Undo payment"
                             className="grid size-8 place-items-center rounded-lg text-muted hover:text-foreground">
                       <Undo2 className="size-4" />
                     </button>
                   )}
+{!readOnly && (
                   <button onClick={() => { const f = flatById.get(r.flatId); if (f) setEditing(f); }}
                           aria-label="Edit flat" title="Edit owner & phone"
                           className="grid size-8 place-items-center rounded-lg text-muted hover:text-foreground">
                     <Pencil className="size-4" />
                   </button>
+)}
+
                 </div>
                 {r.payments.length > 0 && (
                   <div className="flex w-full flex-col gap-1.5 sm:pl-[3.75rem]">
                     {r.payments.map((p) => (
-                      <ReceiptChip key={p.id} p={p} onChanged={() => reload(ym.y, ym.m)} />
+                      <ReceiptChip key={p.id} p={p} readOnly={readOnly} onChanged={() => reload(ym.y, ym.m)} />
                     ))}
                   </div>
                 )}
@@ -460,7 +465,7 @@ function EditModal({ flat, onClose, onSaved }: { flat: Flat | null; onClose: () 
 }
 
 
-function ReceiptChip({ p, onChanged }: { p: PaymentInfo; onChanged: () => void }) {
+function ReceiptChip({ p, onChanged, readOnly = false }: { p: PaymentInfo; onChanged: () => void; readOnly?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -489,12 +494,12 @@ function ReceiptChip({ p, onChanged }: { p: PaymentInfo; onChanged: () => void }
         <FileText className="size-3.5" />{p.receiptNumber} · {inr(p.amount)}
         {(p.periods.includes("–") || p.periods.includes(",")) && <span className="text-muted">· {p.periods}</span>}
       </a>
-      <button onClick={share} disabled={busy} onPointerEnter={warm} onFocus={warm} onTouchStart={warm}
+      {!readOnly && <button onClick={share} disabled={busy} onPointerEnter={warm} onFocus={warm} onTouchStart={warm}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 transition disabled:opacity-60 ${
                 shared ? "bg-income/15 text-income" : "bg-income/10 text-income hover:bg-income/20"}`}>
         {shared ? <Check className="size-3.5" /> : <MessageCircle className="size-3.5" />}
         {busy ? "Opening…" : label}
-      </button>
+      </button>}
       {err && <span className="text-expense">{err}</span>}
     </div>
   );

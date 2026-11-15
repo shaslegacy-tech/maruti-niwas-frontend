@@ -10,7 +10,7 @@ import {
 import { DOC_LABEL, docDate, fileSize, staffOnlyByDefault } from "./documents-shared";
 import { Modal } from "./modal";
 
-export function StaffDocuments({ initial }: { initial: StaffDocument[] }) {
+export function StaffDocuments({ initial, canFinancial = true }: { initial: StaffDocument[]; canFinancial?: boolean }) {
   const [docs, setDocs] = useState(initial);
   const [editing, setEditing] = useState<StaffDocument | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export function StaffDocuments({ initial }: { initial: StaffDocument[] }) {
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
-          <p className="text-sm text-muted">{shared} of {docs.length} documents are visible to residents. Financial documents stay private unless you share them.</p>
+          <p className="text-sm text-muted">{shared} of {docs.length} documents are visible to residents. {canFinancial ? "Financial documents stay private unless you share them." : "Financial documents are handled by the treasurer."}</p>
         </div>
         <button onClick={() => setEditing("new")}
                 className="flex items-center gap-1.5 rounded-xl bg-accent px-3.5 py-2.5 text-sm font-medium text-white transition hover:opacity-90">
@@ -73,13 +73,13 @@ export function StaffDocuments({ initial }: { initial: StaffDocument[] }) {
       </section>
 
       <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing === "new" ? "Upload a document" : "Edit document"}>
-        {editing !== null && <DocForm initial={editing === "new" ? null : editing} onSaved={() => { setEditing(null); reload(); }} />}
+        {editing !== null && <DocForm canFinancial={canFinancial} initial={editing === "new" ? null : editing} onSaved={() => { setEditing(null); reload(); }} />}
       </Modal>
     </>
   );
 }
 
-function DocForm({ initial, onSaved }: { initial: StaffDocument | null; onSaved: () => void }) {
+function DocForm({ initial, onSaved, canFinancial }: { initial: StaffDocument | null; onSaved: () => void; canFinancial: boolean }) {
   const [category, setCategory] = useState<DocumentCategory>(initial?.category ?? "MINUTES");
   const [visibility, setVisibility] = useState<"RESIDENTS" | "STAFF">(initial?.visibility ?? "RESIDENTS");
   const [touched, setTouched] = useState(initial !== null);
@@ -133,7 +133,7 @@ function DocForm({ initial, onSaved }: { initial: StaffDocument | null; onSaved:
         <label className="block text-xs text-muted">
           <span className="mb-1 block">Type</span>
           <select value={category} onChange={(e) => pickCategory(e.target.value as DocumentCategory)} className="field">
-            {(Object.keys(DOC_LABEL) as DocumentCategory[]).map((c) => <option key={c} value={c}>{DOC_LABEL[c]}</option>)}
+            {(Object.keys(DOC_LABEL) as DocumentCategory[]).filter((c) => canFinancial || c !== "FINANCIAL").map((c) => <option key={c} value={c}>{DOC_LABEL[c]}</option>)}
           </select>
         </label>
         <label className="block text-xs text-muted">

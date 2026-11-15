@@ -18,9 +18,9 @@ function renderLine(line: string): ReactNode {
   });
 }
 
-interface Props { initialSummary: Summary; initialHistory: Summary[]; initialYear: number; initialMonth: number }
+interface Props { initialSummary: Summary; initialHistory: Summary[]; initialYear: number; initialMonth: number; readOnly?: boolean }
 
-export function ReportBoard({ initialSummary, initialHistory, initialYear, initialMonth }: Props) {
+export function ReportBoard({ initialSummary, initialHistory, initialYear, initialMonth, readOnly = false }: Props) {
   const [summary, setSummary] = useState(initialSummary);
   const [history, setHistory] = useState(initialHistory);
   const [ym, setYm] = useState({ y: initialYear, m: initialMonth });
@@ -153,11 +153,11 @@ export function ReportBoard({ initialSummary, initialHistory, initialYear, initi
                   ? `Closed${summary.closedAt ? " on " + new Date(summary.closedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}. Figures are archived and locked.`
                   : "Closing archives this statement and locks payments and ledger entries for the month."}
               </p>
-              <button onClick={toggleClose}
+              {!readOnly && <button onClick={toggleClose}
                       className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition ${
                         summary.closed ? "bg-foreground/8 hover:bg-foreground/12" : "bg-accent text-white hover:opacity-90"}`}>
                 {summary.closed ? <><LockOpen className="size-4" />Reopen month</> : <><Lock className="size-4" />Close {monthName(ym.y, ym.m)}</>}
-              </button>
+              </button>}
             </section>
 
             <section className="glass p-5">

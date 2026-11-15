@@ -20,7 +20,7 @@ function ago(iso: string) {
 
 const STATUS_TONE = { SENT: "text-income", PREPARED: "text-muted", FAILED: "text-expense" } as const;
 
-export function DefaultersBoard({ initial, initialRecent }: { initial: DefaultersOverview; initialRecent: RecentReminder[] }) {
+export function DefaultersBoard({ initial, initialRecent, readOnly = false }: { initial: DefaultersOverview; initialRecent: RecentReminder[]; readOnly?: boolean }) {
   const [data, setData] = useState(initial);
   const [recent, setRecent] = useState(initialRecent);
   const [tab, setTab] = useState<"overdue" | "all">(initial.summary.overdueFlats > 0 ? "overdue" : "all");
@@ -98,6 +98,7 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
           <h1 className="text-2xl font-semibold tracking-tight">Defaulters</h1>
           <p className="text-sm text-muted">Flats with unpaid maintenance · overdue after the {data.dueDay}th of the month</p>
         </div>
+{!readOnly && (
         <div className="flex flex-wrap gap-2">
           {data.emailAutomatic && emailList.length > 0 && (
             <button onClick={emailAll} disabled={busy === "all"}
@@ -111,6 +112,7 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
             <MessageCircle className="size-4" />Remind overdue on WhatsApp ({waList.length})
           </button>
         </div>
+)}
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -214,6 +216,7 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
                     </>
                   ) : "Never reminded"}
                 </p>
+{!readOnly && (
                 <div className="flex gap-2">
                   <Link href="/flats" className="rounded-lg bg-foreground/6 px-3 py-1.5 text-xs transition hover:bg-foreground/10">
                     Record payment
@@ -229,18 +232,21 @@ export function DefaultersBoard({ initial, initialRecent }: { initial: Defaulter
                     <MessageCircle className="size-3.5" />WhatsApp
                   </button>
                 </div>
+)}
               </div>
             </motion.li>
           ))}
         </ul>
       </section>
 
+      {!readOnly && (
       <p className="mt-3 text-xs text-muted">
         WhatsApp reminders open in your own WhatsApp with the message already written; press send there.
         {data.emailAutomatic
           ? ` Emails are sent from the server. ${data.autoRemindersEnabled ? "A daily job (10:00) also emails overdue flats automatically." : "Turn on app.reminders.auto-enabled to email overdue flats every day automatically."}`
           : " Email also opens in your mail app. To send emails from the server, add SMTP settings (spring.mail.*)."}
       </p>
+      )}
 
       <section className="glass mt-6 p-5">
         <h2 className="mb-3 text-sm font-medium">Recent reminders</h2>

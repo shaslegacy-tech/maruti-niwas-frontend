@@ -16,9 +16,10 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 interface Props {
   initialTxns: Transaction[]; categories: Categories; initialYear: number; initialMonth: number; today: string;
+  readOnly?: boolean;
 }
 
-export function LedgerBoard({ initialTxns, categories, initialYear, initialMonth, today }: Props) {
+export function LedgerBoard({ initialTxns, categories, initialYear, initialMonth, today, readOnly = false }: Props) {
   const [txns, setTxns] = useState(initialTxns);
   const [ym, setYm] = useState({ y: initialYear, m: initialMonth });
   const [filter, setFilter] = useState<"ALL" | TxType>("ALL");
@@ -70,10 +71,10 @@ export function LedgerBoard({ initialTxns, categories, initialYear, initialMonth
               <ChevronRight className="size-4" />
             </button>
           </div>
-          <button onClick={() => setEditing("new")}
+          {!readOnly && <button onClick={() => setEditing("new")}
                   className="flex items-center gap-1.5 rounded-xl bg-accent px-3.5 py-2.5 text-sm font-medium text-white transition hover:opacity-90">
             <Plus className="size-4" />Add entry
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -124,12 +125,17 @@ export function LedgerBoard({ initialTxns, categories, initialYear, initialMonth
                   <span className={`text-sm font-semibold tabular-nums ${inc ? "text-income" : "text-expense"}`}>
                     {inc ? "+" : "−"}{inr(t.amount)}
                   </span>
+{!readOnly && (
+<>
                   <button onClick={() => setEditing(t)} aria-label="Edit" className="grid size-8 place-items-center rounded-lg text-muted hover:text-foreground">
                     <Pencil className="size-4" />
                   </button>
                   <button onClick={() => remove(t)} aria-label="Delete" className="grid size-8 place-items-center rounded-lg text-muted hover:text-expense">
                     <Trash2 className="size-4" />
                   </button>
+</>
+)}
+
                 </motion.li>
               );
             })}

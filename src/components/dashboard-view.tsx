@@ -7,9 +7,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { getClaimsSummary, getComplaintsSummary, getDashboard } from "@/lib/api.server";
 import { inr } from "@/lib/format";
 
-export async function DashboardView() {
+export async function DashboardView({ showClaims = true }: { showClaims?: boolean } = {}) {
   const d = await getDashboard();
-  const claims = await getClaimsSummary();
+  const claims = showClaims ? await getClaimsSummary() : { pending: 0 };
   const complaints = await getComplaintsSummary();
   const rate = d.totalFlats ? d.flatsPaid / d.totalFlats : 0;
 

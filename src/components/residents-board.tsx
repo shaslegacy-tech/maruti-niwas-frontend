@@ -107,7 +107,7 @@ export function ResidentsBoard({ initial }: { initial: ResidentLogin[] }) {
   );
 }
 
-function CredentialsView({ creds, onDone }: { creds: ResidentCredentials; onDone: () => void }) {
+export function CredentialsView({ creds, onDone, noPhoneLabel = "No phone saved" }: { creds: ResidentCredentials; onDone: () => void; noPhoneLabel?: string }) {
   const [copied, setCopied] = useState<string | null>(null);
 
   async function copy(key: string, value: string) {
@@ -131,7 +131,7 @@ function CredentialsView({ creds, onDone }: { creds: ResidentCredentials; onDone
             <MessageCircle className="size-4" />WhatsApp
           </a>
         ) : (
-          <span className="flex items-center justify-center rounded-lg bg-foreground/5 py-2.5 text-center text-xs text-muted">No phone saved</span>
+          <span className="flex items-center justify-center rounded-lg bg-foreground/5 py-2.5 text-center text-xs text-muted">{noPhoneLabel}</span>
         )}
         <button onClick={() => copy("msg", creds.message)}
                 className="flex items-center justify-center gap-1.5 rounded-lg bg-foreground/8 py-2.5 text-sm font-medium">

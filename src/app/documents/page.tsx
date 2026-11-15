@@ -10,5 +10,6 @@ export default async function DocumentsPage() {
   const me = await getMe();
   if (me.mustChangePassword) redirect("/change-password");
   if (me.roles.includes("RESIDENT")) return <ResidentDocuments docs={await getMyDocuments()} />;
-  return <StaffDocuments initial={await getDocuments()} />;
+  const canFinancial = me.roles.includes("TREASURER") || me.canViewFinancial;
+  return <StaffDocuments initial={await getDocuments()} canFinancial={canFinancial} />;
 }

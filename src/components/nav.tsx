@@ -1,11 +1,12 @@
 "use client";
 
-import { Bell, Building2, Download, FolderOpen, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LogOut, Megaphone, MessageSquareWarning, Receipt, ScrollText, ShieldCheck, Users } from "lucide-react";
+import { Bell, Building2, Download, FolderOpen, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LogOut, Megaphone, MessageSquareWarning, Receipt, ScrollText, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Me } from "@/lib/api";
 
 const TREASURER = ["TREASURER"];
+const COMMITTEE = ["TREASURER", "SECRETARY", "CHAIRMAN"];   // Secretary and Chairman read the books; only the treasurer changes them
 
 // `roles` decides who sees each item. Add SECRETARY / CHAIRMAN / RESIDENT here as their screens ship.
 const RESIDENT = ["RESIDENT"];
@@ -15,23 +16,25 @@ const ITEMS = [
   { href: "/maintenance", label: "Maintenance", icon: Receipt, roles: RESIDENT },
   { href: "/complaints", label: "Complaints", icon: MessageSquareWarning, roles: RESIDENT },
   { href: "/documents", label: "Documents", icon: FolderOpen, roles: RESIDENT },
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: TREASURER },
-  { href: "/flats", label: "Flats", icon: Users, roles: TREASURER },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: COMMITTEE },
+  { href: "/flats", label: "Flats", icon: Users, roles: COMMITTEE },
   { href: "/residents", label: "Residents", icon: KeyRound, roles: TREASURER },
+  { href: "/committee", label: "Committee", icon: UserCog, roles: TREASURER },
   { href: "/claims", label: "Payment proofs", icon: Inbox, roles: TREASURER },
-  { href: "/notices", label: "Notices", icon: Megaphone, roles: TREASURER },
-  { href: "/complaints", label: "Complaints", icon: MessageSquareWarning, roles: TREASURER },
-  { href: "/documents", label: "Documents", icon: FolderOpen, roles: TREASURER },
-  { href: "/defaulters", label: "Defaulters", icon: Bell, roles: TREASURER },
-  { href: "/ledger", label: "Ledger", icon: Receipt, roles: TREASURER },
-  { href: "/balances", label: "Balances", icon: Landmark, roles: TREASURER },
-  { href: "/report", label: "Report", icon: ScrollText, roles: TREASURER },
-  { href: "/exports", label: "Exports", icon: Download, roles: TREASURER },
-  { href: "/audit", label: "Audit", icon: ShieldCheck, roles: TREASURER },
+  { href: "/notices", label: "Notices", icon: Megaphone, roles: COMMITTEE },
+  { href: "/complaints", label: "Complaints", icon: MessageSquareWarning, roles: COMMITTEE },
+  { href: "/documents", label: "Documents", icon: FolderOpen, roles: COMMITTEE },
+  { href: "/defaulters", label: "Defaulters", icon: Bell, roles: COMMITTEE },
+  { href: "/ledger", label: "Ledger", icon: Receipt, roles: COMMITTEE },
+  { href: "/balances", label: "Balances", icon: Landmark, roles: COMMITTEE },
+  { href: "/report", label: "Report", icon: ScrollText, roles: COMMITTEE },
+  { href: "/exports", label: "Exports", icon: Download, roles: COMMITTEE },
+  { href: "/audit", label: "Audit", icon: ShieldCheck, roles: COMMITTEE },
 ];
 
 const visible = (me: Me | null) =>
-  me ? ITEMS.filter((i) => i.roles.some((r) => me.roles.includes(r))) : ITEMS;
+  // Until we know who is signed in, show no menu rather than everyone's menu.
+  me ? ITEMS.filter((i) => i.roles.some((r) => me.roles.includes(r))) : [];
 
 export function Sidebar({ me, onLogout }: { me: Me | null; onLogout: () => void }) {
   const path = usePathname();

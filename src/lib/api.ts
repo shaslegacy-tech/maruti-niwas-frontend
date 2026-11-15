@@ -118,6 +118,7 @@ export interface Me {
   id: number | null; username: string; fullName: string; roles: string[];
   mustChangePassword: boolean;      // a new or reset login: the password must be changed first
   flatId: number | null;            // set for resident logins
+  canViewFinancial: boolean;        // committee members: may they open financial documents (the treasurer always can)
 }
 
 export const login = (username: string, password: string) =>
@@ -426,3 +427,17 @@ export const updateDocument = (id: number, body: {
   visibility: "RESIDENTS" | "STAFF"; confirmSensitive: boolean;
 }) => request<StaffDocument>(`/api/documents/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const deleteDocument = (id: number) => request<void>(`/api/documents/${id}`, { method: "DELETE" });
+
+// ---- Committee accounts (treasurer only) ----
+export interface CommitteeMember {
+  id: number; username: string; fullName: string; email: string | null; role: "SECRETARY" | "CHAIRMAN";
+  active: boolean; mustChangePassword: boolean; canViewFinancial: boolean; lastLoginAt: string | null;
+}
+export const getCommittee = () => request<CommitteeMember[]>("/api/committee");
+export const createCommitteeMember = (b: {
+  fullName: string; role: "SECRETARY" | "CHAIRMAN"; username?: string; email?: string; phone?: string; canViewFinancial: boolean;
+}) => request<ResidentCredentials>("/api/committee", { method: "POST", body: JSON.stringify(b) });
+export const resetCommitteePassword = (id: number) =>
+  request<ResidentCredentials>(`/api/committee/${id}/credentials`, { method: "POST" });
+export const updateCommitteeMember = (id: number, b: { active?: boolean; canViewFinancial?: boolean }) =>
+  request<CommitteeMember>(`/api/committee/${id}`, { method: "PUT", body: JSON.stringify(b) });

@@ -15,9 +15,9 @@ const round2 = (n: number) => Math.round((Number.isFinite(n) ? n : 0) * 100) / 1
 /** Indian financial year starts on 1 April. */
 const fyStart = (y: number, m: number) => (m >= 4 ? `${y}-04` : `${y - 1}-04`);
 
-interface Props { initialOverview: BalanceOverview; initialRec: Reconciliation; initialYear: number; initialMonth: number }
+interface Props { initialOverview: BalanceOverview; initialRec: Reconciliation; initialYear: number; initialMonth: number; readOnly?: boolean }
 
-export function BalancesBoard({ initialOverview, initialRec, initialYear, initialMonth }: Props) {
+export function BalancesBoard({ initialOverview, initialRec, initialYear, initialMonth, readOnly = false }: Props) {
   const [overview, setOverview] = useState(initialOverview);
   const [rec, setRec] = useState(initialRec);
   const [ym, setYm] = useState({ y: initialYear, m: initialMonth });
@@ -147,6 +147,7 @@ export function BalancesBoard({ initialOverview, initialRec, initialYear, initia
             </div>
           </motion.section>
 
+{!readOnly && (
           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="glass p-5">
             <div className="mb-1 flex items-center justify-between gap-2">
               <h2 className="text-sm font-medium">Verify closing balance</h2>
@@ -219,6 +220,7 @@ export function BalancesBoard({ initialOverview, initialRec, initialYear, initia
               <p className="mt-3 text-[11px] text-muted">{rec.adjustments.length} adjustment(s) already posted for this month (see Audit log).</p>
             )}
           </motion.section>
+)}
         </div>
 
         <div className="space-y-4 lg:col-span-2">
@@ -236,16 +238,20 @@ export function BalancesBoard({ initialOverview, initialRec, initialYear, initia
                       <p className="font-medium">{monthName(Number(o.asOf.slice(0, 4)), Number(o.asOf.slice(5, 7)))}</p>
                       <p className="text-xs text-muted">Cash {inr(o.cash)} · Bank {inr(o.bank)}</p>
                     </div>
+{!readOnly && (
                     <button aria-label="Edit" title="Edit"
                             onClick={() => setOpen({ month: o.asOf.slice(0, 7), cash: String(o.cash), bank: String(o.bank), note: o.note ?? "" })}
                             className="grid size-8 place-items-center rounded-lg text-muted hover:text-foreground">
                       <Pencil className="size-4" />
                     </button>
+)}
+
                   </li>
                 ))}
               </ul>
             )}
 
+{!readOnly && (
             <div className="space-y-3">
               <label className="block text-xs text-muted">
                 <span className="mb-1 block">Month (1st)</span>
@@ -270,6 +276,7 @@ export function BalancesBoard({ initialOverview, initialRec, initialYear, initia
                 Save opening balance
               </button>
             </div>
+)}
           </motion.section>
 
           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.16 }} className="glass p-5">

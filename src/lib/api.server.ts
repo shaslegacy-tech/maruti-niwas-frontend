@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { AuditEntry, BalanceOverview, ComplaintSummary, Me, Notice, ResidentDocument, StaffClaim, StaffDocument, ResidentHome, ResidentLogin, Categories, DefaultersOverview, RecentReminder, Reconciliation, Dashboard, Flat, Maintenance, Summary, Transaction } from "./api";
+import type { AuditEntry, BalanceOverview, CommitteeMember, ComplaintSummary, Me, Notice, ResidentDocument, StaffClaim, StaffDocument, ResidentHome, ResidentLogin, Categories, DefaultersOverview, RecentReminder, Reconciliation, Dashboard, Flat, Maintenance, Summary, Transaction } from "./api";
 
 const API = process.env.API_URL ?? "http://localhost:8080";
 
@@ -39,3 +39,4 @@ export const getComplaints = () => get<ComplaintSummary[]>("/api/complaints?limi
 export const getComplaintsSummary = () => get<{ active: number }>("/api/complaints/summary");
 export const getMyDocuments = () => get<ResidentDocument[]>("/api/me/documents");
 export const getDocuments = () => get<StaffDocument[]>("/api/documents");
+export const getCommittee = () => get<CommitteeMember[]>("/api/committee");
