@@ -3,11 +3,12 @@
 import { motion } from "framer-motion";
 import { Check, X } from "lucide-react";
 import { type FormEvent, useCallback, useState } from "react";
-import { type ApprovalItem, approveNotice, approveResolution, getApprovals, rejectNotice, rejectResolution } from "@/lib/api";
+import { type ApprovalItem, approveNotice, approveResolution, approveTransaction, getApprovals, rejectNotice, rejectResolution, rejectTransaction } from "@/lib/api";
+import { inr } from "@/lib/format";
 import { Modal } from "./modal";
 import { when } from "./resident-shared";
 
-const TYPE_LABEL: Record<ApprovalItem["type"], string> = { NOTICE: "Important notice", RESOLUTION: "Important decision" };
+const TYPE_LABEL: Record<ApprovalItem["type"], string> = { NOTICE: "Important notice", RESOLUTION: "Important decision", TRANSACTION: "Ledger entry" };
 
 export function ApprovalsBoard({ initial }: { initial: ApprovalItem[] }) {
   const [items, setItems] = useState(initial);
@@ -23,7 +24,7 @@ export function ApprovalsBoard({ initial }: { initial: ApprovalItem[] }) {
 
   async function approve(a: ApprovalItem) {
     setError(null); setBusy(key(a));
-    try { await (a.type === "RESOLUTION" ? approveResolution(a.id) : approveNotice(a.id)); await reload(); }
+    try { await (a.type === "RESOLUTION" ? approveResolution(a.id) : a.type === "TRANSACTION" ? approveTransaction(a.id) : approveNotice(a.id)); await reload(); }
     catch (e) { setError((e as Error).message); await reload(); }
     finally { setBusy(null); }
   }
@@ -50,6 +51,9 @@ export function ApprovalsBoard({ initial }: { initial: ApprovalItem[] }) {
                 <span className="text-[11px] text-muted">{a.meta}</span>
               </div>
               <p className="mt-2 text-sm font-medium">{a.title}</p>
+              {a.type === "TRANSACTION" && a.amount !== null && (
+                <p className="mt-0.5 text-xs text-muted">Already recorded in the books ({inr(a.amount)} counts in the balance). Approving confirms it; rejecting flags it for the treasurer to explain or correct.</p>
+              )}
               <p className="mt-1 whitespace-pre-wrap text-sm text-muted">{a.summary}</p>
               <p className="mt-2 text-[11px] text-muted">Submitted by {a.submittedBy}{a.submittedAt ? ` · ${when(a.submittedAt)}` : ""}</p>
               <div className="mt-3 flex gap-2">
@@ -82,7 +86,11 @@ function RejectForm({ item, onDone }: { item: ApprovalItem; onDone: () => void }
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     setBusy(true); setErr(null);
-    try { await (item.type === "RESOLUTION" ? rejectResolution(item.id, String(f.get("reason"))) : rejectNotice(item.id, String(f.get("reason")))); onDone(); }
+    try {
+      const reason = String(f.get("reason"));
+      await (item.type === "RESOLUTION" ? rejectResolution(item.id, reason) : item.type === "TRANSACTION" ? rejectTransaction(item.id, reason) : rejectNotice(item.id, reason));
+      onDone();
+    }
     catch (e2) { setErr((e2 as Error).message); setBusy(false); }
   }
 

@@ -82,6 +82,8 @@ export interface Transaction {
   id: number; type: TxType; category: string; amount: number; date: string;
   paidTo: string | null; paidBy: string | null; description: string | null;
   receiptRef: string | null; recordedBy: string | null; account: Account;
+  // the Chairman's review of larger entries (the money counts either way)
+  approvalStatus: "NOT_REQUIRED" | "PENDING" | "APPROVED" | "REJECTED"; reviewNote: string | null; reviewedBy: string | null;
 }
 export interface TransactionInput {
   type: TxType; category: string; amount: number; date: string;
@@ -476,7 +478,7 @@ export const removeMember = (id: number) => request<void>(`/api/members/people/$
 
 // ---- Approvals (Chairman) ----
 export interface ApprovalItem {
-  type: "NOTICE" | "RESOLUTION"; id: number; title: string; meta: string; summary: string;
+  type: "NOTICE" | "RESOLUTION" | "TRANSACTION"; id: number; title: string; meta: string; summary: string;
   submittedBy: string; submittedAt: string | null; amount: number | null;
 }
 export const getApprovals = () => request<ApprovalItem[]>("/api/approvals");
@@ -550,3 +552,7 @@ export interface ResidentMeeting {
 }
 export const getMyMeetings = () => request<ResidentMeetingLine[]>("/api/me/meetings");
 export const getMyMeeting = (id: number) => request<ResidentMeeting>(`/api/me/meetings/${id}`);
+export const approveTransaction = (id: number) => request<void>(`/api/approvals/transactions/${id}/approve`, { method: "POST" });
+export const rejectTransaction = (id: number, reason: string) =>
+  request<void>(`/api/approvals/transactions/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+export interface ReviewSummary { pending: number; rejected: number; threshold: number }
