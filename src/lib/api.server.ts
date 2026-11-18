@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { ApprovalItem, AuditEntry, BalanceOverview, CommitteeMember, FlatDirectoryEntry, ComplaintSummary, Me, Notice, ResidentDocument, StaffClaim, StaffDocument, ResidentHome, ResidentLogin, Categories, DefaultersOverview, RecentReminder, Reconciliation, Dashboard, Flat, Maintenance, Summary, Transaction } from "./api";
+import type { ApprovalItem, AuditEntry, MeetingDetail, MeetingSummary, ResidentMeetingLine, BalanceOverview, CommitteeMember, FlatDirectoryEntry, ComplaintSummary, Me, Notice, ResidentDocument, StaffClaim, StaffDocument, ResidentHome, ResidentLogin, Categories, DefaultersOverview, RecentReminder, Reconciliation, Dashboard, Flat, Maintenance, Summary, Transaction } from "./api";
 
 const API = process.env.API_URL ?? "http://localhost:8080";
 
@@ -43,3 +43,6 @@ export const getCommittee = () => get<CommitteeMember[]>("/api/committee");
 export const getMembers = () => get<FlatDirectoryEntry[]>("/api/members");
 export const getApprovals = () => get<ApprovalItem[]>("/api/approvals");
 export const getApprovalsSummary = () => get<{ pending: number }>("/api/approvals/summary");
+export const getMeetings = () => get<MeetingSummary[]>("/api/meetings");
+export const getMeeting = (id: number) => get<MeetingDetail>(`/api/meetings/${id}`);
+export const getMyMeetings = () => get<ResidentMeetingLine[]>("/api/me/meetings");

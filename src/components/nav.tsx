@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Bell, Building2, Contact, Download, FolderOpen, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LogOut, Megaphone, MessageSquareWarning, Receipt, ScrollText, ShieldCheck, UserCog, Users } from "lucide-react";
+import { BadgeCheck, Bell, CalendarDays, Building2, Contact, Download, FolderOpen, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LogOut, Megaphone, MessageSquareWarning, Receipt, ScrollText, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Me } from "@/lib/api";
@@ -15,6 +15,7 @@ const RESIDENT = ["RESIDENT"];
 const ITEMS = [
   { href: "/", label: "Home", icon: Home, roles: RESIDENT },
   { href: "/maintenance", label: "Maintenance", icon: Receipt, roles: RESIDENT },
+  { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: RESIDENT },
   { href: "/complaints", label: "Complaints", icon: MessageSquareWarning, roles: RESIDENT },
   { href: "/documents", label: "Documents", icon: FolderOpen, roles: RESIDENT },
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: COMMITTEE },
@@ -25,6 +26,7 @@ const ITEMS = [
   { href: "/committee", label: "Committee", icon: UserCog, roles: TREASURER },
   { href: "/claims", label: "Payment proofs", icon: Inbox, roles: TREASURER },
   { href: "/notices", label: "Notices", icon: Megaphone, roles: COMMITTEE },
+  { href: "/meetings", label: "Meetings", icon: CalendarDays, roles: COMMITTEE },
   { href: "/complaints", label: "Complaints", icon: MessageSquareWarning, roles: COMMITTEE },
   { href: "/documents", label: "Documents", icon: FolderOpen, roles: COMMITTEE },
   { href: "/defaulters", label: "Defaulters", icon: Bell, roles: COMMITTEE },

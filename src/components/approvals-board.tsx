@@ -3,11 +3,11 @@
 import { motion } from "framer-motion";
 import { Check, X } from "lucide-react";
 import { type FormEvent, useCallback, useState } from "react";
-import { type ApprovalItem, approveNotice, getApprovals, rejectNotice } from "@/lib/api";
+import { type ApprovalItem, approveNotice, approveResolution, getApprovals, rejectNotice, rejectResolution } from "@/lib/api";
 import { Modal } from "./modal";
 import { when } from "./resident-shared";
 
-const TYPE_LABEL: Record<ApprovalItem["type"], string> = { NOTICE: "Important notice" };
+const TYPE_LABEL: Record<ApprovalItem["type"], string> = { NOTICE: "Important notice", RESOLUTION: "Important decision" };
 
 export function ApprovalsBoard({ initial }: { initial: ApprovalItem[] }) {
   const [items, setItems] = useState(initial);
@@ -23,7 +23,7 @@ export function ApprovalsBoard({ initial }: { initial: ApprovalItem[] }) {
 
   async function approve(a: ApprovalItem) {
     setError(null); setBusy(key(a));
-    try { await approveNotice(a.id); await reload(); }
+    try { await (a.type === "RESOLUTION" ? approveResolution(a.id) : approveNotice(a.id)); await reload(); }
     catch (e) { setError((e as Error).message); await reload(); }
     finally { setBusy(null); }
   }
@@ -82,13 +82,13 @@ function RejectForm({ item, onDone }: { item: ApprovalItem; onDone: () => void }
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     setBusy(true); setErr(null);
-    try { await rejectNotice(item.id, String(f.get("reason"))); onDone(); }
+    try { await (item.type === "RESOLUTION" ? rejectResolution(item.id, String(f.get("reason"))) : rejectNotice(item.id, String(f.get("reason")))); onDone(); }
     catch (e2) { setErr((e2 as Error).message); setBusy(false); }
   }
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <p className="text-sm text-muted">The Secretary will see your reason and can change the notice and submit it again.</p>
+      <p className="text-sm text-muted">The Secretary will see your reason and can change it and submit it again.</p>
       <label className="block text-xs text-muted">
         <span className="mb-1 block">Reason</span>
         <textarea name="reason" required maxLength={300} rows={3} className="field resize-y" autoFocus

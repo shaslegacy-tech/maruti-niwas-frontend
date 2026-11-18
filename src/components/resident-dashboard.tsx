@@ -130,7 +130,10 @@ function NoticeCard({ title, empty, items }: { title: string; empty: string; ite
 function MeetingCard({ meetings }: { meetings: NoticeItem[] }) {
   return (
     <section className="glass p-5">
-      <h2 className="mb-3 text-sm font-medium">Upcoming meetings</h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-medium">Upcoming meetings</h2>
+        <Link href="/meetings" className="text-xs text-accent hover:underline">All meetings</Link>
+      </div>
       {meetings.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted">No meetings scheduled</p>
       ) : (

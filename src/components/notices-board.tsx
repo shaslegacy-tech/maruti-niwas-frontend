@@ -176,8 +176,8 @@ function NoticeForm({ initial, onSaved }: { initial: Notice | null; onSaved: () 
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-foreground/6 p-1">
-        {(Object.keys(KINDS) as NoticeKind[]).map((k) => (
+      <div className={`grid gap-1 rounded-xl bg-foreground/6 p-1 ${initial?.kind === "MEETING" ? "grid-cols-3" : "grid-cols-2"}`}>
+        {(Object.keys(KINDS) as NoticeKind[]).filter((k) => k !== "MEETING" || initial?.kind === "MEETING").map((k) => (
           <button type="button" key={k} onClick={() => setKind(k)}
                   className={`rounded-lg py-1.5 text-xs font-medium transition ${kind === k ? "bg-accent text-white" : "text-muted"}`}>
             {KINDS[k].label}

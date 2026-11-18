@@ -476,10 +476,77 @@ export const removeMember = (id: number) => request<void>(`/api/members/people/$
 
 // ---- Approvals (Chairman) ----
 export interface ApprovalItem {
-  type: "NOTICE"; id: number; title: string; meta: string; summary: string;
+  type: "NOTICE" | "RESOLUTION"; id: number; title: string; meta: string; summary: string;
   submittedBy: string; submittedAt: string | null; amount: number | null;
 }
 export const getApprovals = () => request<ApprovalItem[]>("/api/approvals");
 export const approveNotice = (id: number) => request<void>(`/api/approvals/notices/${id}/approve`, { method: "POST" });
 export const rejectNotice = (id: number, reason: string) =>
   request<void>(`/api/approvals/notices/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+export const approveResolution = (id: number) => request<void>(`/api/approvals/resolutions/${id}/approve`, { method: "POST" });
+export const rejectResolution = (id: number, reason: string) =>
+  request<void>(`/api/approvals/resolutions/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+
+// ---- Meetings ----
+export type MeetingKind = "AGM" | "SPECIAL" | "COMMITTEE" | "OTHER";
+export type MeetingStatus = "DRAFT" | "SCHEDULED" | "HELD" | "CANCELLED";
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "APOLOGY";
+export type ResolutionOutcome = "PASSED" | "REJECTED" | "DEFERRED";
+export type ApprovalState = "NOT_REQUIRED" | "PENDING" | "APPROVED" | "REJECTED";
+export interface MeetingSummary {
+  id: number; kind: MeetingKind; title: string; scheduledAt: string; venue: string | null; status: MeetingStatus;
+  minutesPublished: boolean; agendaCount: number; resolutionCount: number; createdBy: string;
+}
+export interface AgendaItemView { id: number; position: number; title: string; notes: string | null }
+export interface AttendanceRow {
+  flatId: number; flatNumber: string; ownerName: string; status: AttendanceStatus | null;
+  attendeeName: string | null; note: string | null;
+}
+export interface ResolutionView {
+  id: number; number: number; title: string; text: string; outcome: ResolutionOutcome;
+  votesFor: number | null; votesAgainst: number | null; abstained: number | null;
+  important: boolean; approvalStatus: ApprovalState; reviewNote: string | null; reviewedBy: string | null;
+}
+export interface MeetingDetail {
+  summary: MeetingSummary; description: string | null; cancelledReason: string | null; minutes: string | null;
+  agenda: AgendaItemView[]; attendance: AttendanceRow[]; resolutions: ResolutionView[]; documents: StaffDocument[];
+}
+export interface MeetingInput { kind: MeetingKind; title: string; scheduledAt: string; venue?: string; description?: string }
+export interface ResolutionInput {
+  title: string; text: string; outcome: ResolutionOutcome; votesFor?: number; votesAgainst?: number; abstained?: number; important: boolean;
+}
+export const getMeetings = () => request<MeetingSummary[]>("/api/meetings");
+export const getMeeting = (id: number) => request<MeetingDetail>(`/api/meetings/${id}`);
+export const createMeeting = (b: MeetingInput) => request<MeetingDetail>("/api/meetings", { method: "POST", body: JSON.stringify(b) });
+export const updateMeeting = (id: number, b: MeetingInput) => request<MeetingDetail>(`/api/meetings/${id}`, { method: "PUT", body: JSON.stringify(b) });
+export const deleteMeeting = (id: number) => request<void>(`/api/meetings/${id}`, { method: "DELETE" });
+export const scheduleMeeting = (id: number) => request<MeetingDetail>(`/api/meetings/${id}/schedule`, { method: "POST" });
+export const markMeetingHeld = (id: number) => request<MeetingDetail>(`/api/meetings/${id}/held`, { method: "POST" });
+export const cancelMeeting = (id: number, reason: string) =>
+  request<MeetingDetail>(`/api/meetings/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) });
+export const saveAgenda = (id: number, items: { title: string; notes?: string }[]) =>
+  request<MeetingDetail>(`/api/meetings/${id}/agenda`, { method: "PUT", body: JSON.stringify({ items }) });
+export const saveAttendance = (id: number, rows: { flatId: number; status: AttendanceStatus; attendeeName?: string; note?: string }[]) =>
+  request<MeetingDetail>(`/api/meetings/${id}/attendance`, { method: "PUT", body: JSON.stringify({ rows }) });
+export const saveMinutes = (id: number, minutes: string, published: boolean) =>
+  request<MeetingDetail>(`/api/meetings/${id}/minutes`, { method: "PUT", body: JSON.stringify({ minutes, published }) });
+export const addResolution = (id: number, b: ResolutionInput) =>
+  request<MeetingDetail>(`/api/meetings/${id}/resolutions`, { method: "POST", body: JSON.stringify(b) });
+export const updateResolution = (resolutionId: number, b: ResolutionInput) =>
+  request<MeetingDetail>(`/api/meetings/resolutions/${resolutionId}`, { method: "PUT", body: JSON.stringify(b) });
+export const deleteResolution = (resolutionId: number) =>
+  request<MeetingDetail>(`/api/meetings/resolutions/${resolutionId}`, { method: "DELETE" });
+export const uploadMeetingDocument = (id: number, form: FormData) => postForm<StaffDocument>(`/api/meetings/${id}/documents`, form);
+
+// resident view
+export interface ResidentMeetingLine {
+  id: number; kind: MeetingKind; title: string; scheduledAt: string; venue: string | null; status: MeetingStatus; hasMinutes: boolean;
+}
+export interface ResidentMeeting {
+  id: number; kind: MeetingKind; title: string; scheduledAt: string; venue: string | null; status: MeetingStatus;
+  description: string | null; cancelledReason: string | null; agenda: AgendaItemView[]; minutes: string | null;
+  decisions: { number: number; title: string; text: string; outcome: ResolutionOutcome; votesFor: number | null; votesAgainst: number | null; abstained: number | null }[];
+  documents: ResidentDocument[];
+}
+export const getMyMeetings = () => request<ResidentMeetingLine[]>("/api/me/meetings");
+export const getMyMeeting = (id: number) => request<ResidentMeeting>(`/api/me/meetings/${id}`);
