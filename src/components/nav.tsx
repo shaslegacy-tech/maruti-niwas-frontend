@@ -1,11 +1,12 @@
 "use client";
 
-import { Bell, Building2, Contact, Download, FolderOpen, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LogOut, Megaphone, MessageSquareWarning, Receipt, ScrollText, ShieldCheck, UserCog, Users } from "lucide-react";
+import { BadgeCheck, Bell, Building2, Contact, Download, FolderOpen, Home, Inbox, KeyRound, Landmark, LayoutDashboard, LogOut, Megaphone, MessageSquareWarning, Receipt, ScrollText, ShieldCheck, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Me } from "@/lib/api";
 
 const TREASURER = ["TREASURER"];
+const CHAIRMAN = ["CHAIRMAN"];
 const COMMITTEE = ["TREASURER", "SECRETARY", "CHAIRMAN"];   // Secretary and Chairman read the books; only the treasurer changes them
 
 // `roles` decides who sees each item. Add SECRETARY / CHAIRMAN / RESIDENT here as their screens ship.
@@ -17,6 +18,7 @@ const ITEMS = [
   { href: "/complaints", label: "Complaints", icon: MessageSquareWarning, roles: RESIDENT },
   { href: "/documents", label: "Documents", icon: FolderOpen, roles: RESIDENT },
   { href: "/", label: "Dashboard", icon: LayoutDashboard, roles: COMMITTEE },
+  { href: "/approvals", label: "Approvals", icon: BadgeCheck, roles: CHAIRMAN },
   { href: "/flats", label: "Flats", icon: Users, roles: COMMITTEE },
   { href: "/members", label: "Members", icon: Contact, roles: COMMITTEE },
   { href: "/residents", label: "Residents", icon: KeyRound, roles: TREASURER },

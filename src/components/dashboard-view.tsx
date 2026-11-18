@@ -1,16 +1,17 @@
-import { Clock, Inbox, Landmark, MessageSquareWarning, TrendingDown, Users } from "lucide-react";
+import { BadgeCheck, Clock, Inbox, Landmark, MessageSquareWarning, TrendingDown, Users } from "lucide-react";
 import Link from "next/link";
 import { CashFlowChart } from "@/components/cash-flow-chart";
 import { RecentFeed } from "@/components/recent-feed";
 import { StatCard } from "@/components/stat-card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getClaimsSummary, getComplaintsSummary, getDashboard } from "@/lib/api.server";
+import { getApprovalsSummary, getClaimsSummary, getComplaintsSummary, getDashboard } from "@/lib/api.server";
 import { inr } from "@/lib/format";
 
-export async function DashboardView({ showClaims = true }: { showClaims?: boolean } = {}) {
+export async function DashboardView({ showClaims = true, showApprovals = false }: { showClaims?: boolean; showApprovals?: boolean } = {}) {
   const d = await getDashboard();
   const claims = showClaims ? await getClaimsSummary() : { pending: 0 };
   const complaints = await getComplaintsSummary();
+  const approvals = showApprovals ? await getApprovalsSummary() : { pending: 0 };
   const rate = d.totalFlats ? d.flatsPaid / d.totalFlats : 0;
 
   return (
@@ -22,6 +23,15 @@ export async function DashboardView({ showClaims = true }: { showClaims?: boolea
         </div>
         <ThemeToggle />
       </header>
+
+      {approvals.pending > 0 && (
+        <Link href="/approvals"
+              className="mb-4 flex items-center gap-3 rounded-xl bg-accent/12 px-4 py-3 text-sm text-accent transition hover:bg-accent/20">
+          <BadgeCheck className="size-4" />
+          <span><b>{approvals.pending}</b> item{approvals.pending > 1 ? "s" : ""} waiting for your approval</span>
+          <span className="ml-auto text-xs underline">Review</span>
+        </Link>
+      )}
 
       {complaints.active > 0 && (
         <Link href="/complaints"

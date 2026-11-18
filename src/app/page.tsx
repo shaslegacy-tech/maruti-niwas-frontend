@@ -10,5 +10,5 @@ export default async function HomePage() {
   const me = await getMe();
   if (me.mustChangePassword) redirect("/change-password");
   if (me.roles.includes("RESIDENT")) return <ResidentDashboard home={await getResidentHome()} />;
-  return <DashboardView showClaims={me.roles.includes("TREASURER")} />;
+  return <DashboardView showClaims={me.roles.includes("TREASURER")} showApprovals={me.roles.includes("CHAIRMAN")} />;
 }

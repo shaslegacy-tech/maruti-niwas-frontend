@@ -10,7 +10,7 @@ import {
 import { DOC_LABEL, docDate, fileSize, staffOnlyByDefault } from "./documents-shared";
 import { Modal } from "./modal";
 
-export function StaffDocuments({ initial, canFinancial = true }: { initial: StaffDocument[]; canFinancial?: boolean }) {
+export function StaffDocuments({ initial, canFinancial = true, readOnly = false }: { initial: StaffDocument[]; canFinancial?: boolean; readOnly?: boolean }) {
   const [docs, setDocs] = useState(initial);
   const [editing, setEditing] = useState<StaffDocument | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,10 +34,12 @@ export function StaffDocuments({ initial, canFinancial = true }: { initial: Staf
           <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
           <p className="text-sm text-muted">{shared} of {docs.length} documents are visible to residents. {canFinancial ? "Financial documents stay private unless you share them." : "Financial documents are handled by the treasurer."}</p>
         </div>
-        <button onClick={() => setEditing("new")}
-                className="flex items-center gap-1.5 rounded-xl bg-accent px-3.5 py-2.5 text-sm font-medium text-white transition hover:opacity-90">
-          <Plus className="size-4" />Upload
-        </button>
+        {!readOnly && (
+          <button onClick={() => setEditing("new")}
+                  className="flex items-center gap-1.5 rounded-xl bg-accent px-3.5 py-2.5 text-sm font-medium text-white transition hover:opacity-90">
+            <Plus className="size-4" />Upload
+          </button>
+        )}
       </header>
 
       {error && <p className="mb-3 rounded-lg bg-expense/10 px-3 py-2 text-sm text-expense">{error}</p>}
@@ -64,8 +66,12 @@ export function StaffDocuments({ initial, canFinancial = true }: { initial: Staf
               <div className="flex items-center gap-1">
                 <a href={`/api/documents/${d.id}/file`} target="_blank" rel="noopener noreferrer"
                    className="rounded-lg bg-foreground/8 px-2.5 py-1.5 text-xs transition hover:bg-foreground/12">Open</a>
-                <button onClick={() => setEditing(d)} aria-label="Edit" className="grid size-8 place-items-center rounded-lg text-muted hover:text-foreground"><Pencil className="size-4" /></button>
-                <button onClick={() => remove(d)} aria-label="Remove" className="grid size-8 place-items-center rounded-lg text-muted hover:text-expense"><Trash2 className="size-4" /></button>
+                {!readOnly && (
+                  <>
+                    <button onClick={() => setEditing(d)} aria-label="Edit" className="grid size-8 place-items-center rounded-lg text-muted hover:text-foreground"><Pencil className="size-4" /></button>
+                    <button onClick={() => remove(d)} aria-label="Remove" className="grid size-8 place-items-center rounded-lg text-muted hover:text-expense"><Trash2 className="size-4" /></button>
+                  </>
+                )}
               </div>
             </motion.li>
           ))}

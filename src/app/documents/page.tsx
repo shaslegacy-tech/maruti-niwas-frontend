@@ -11,5 +11,6 @@ export default async function DocumentsPage() {
   if (me.mustChangePassword) redirect("/change-password");
   if (me.roles.includes("RESIDENT")) return <ResidentDocuments docs={await getMyDocuments()} />;
   const canFinancial = me.roles.includes("TREASURER") || me.canViewFinancial;
-  return <StaffDocuments initial={await getDocuments()} canFinancial={canFinancial} />;
+  const readOnly = !(me.roles.includes("TREASURER") || me.roles.includes("SECRETARY"));   // the Chairman supervises
+  return <StaffDocuments initial={await getDocuments()} canFinancial={canFinancial} readOnly={readOnly} />;
 }

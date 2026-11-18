@@ -339,16 +339,21 @@ export interface Notice {
   id: number; kind: NoticeKind; title: string; body: string; pinned: boolean;
   publishAt: string; expiresAt: string | null; meetingAt: string | null; venue: string | null;
   createdBy: string; live: boolean; whatsappShareUrl: string;
+  status: "DRAFT" | "PENDING_APPROVAL" | "PUBLISHED" | "REJECTED"; important: boolean;
+  reviewNote: string | null; reviewedBy: string | null;
 }
 export interface NoticeInput {
   kind: NoticeKind; title: string; body: string; pinned: boolean;
   publishAt?: string; expiresAt?: string; meetingAt?: string; venue?: string;
+  important?: boolean; action?: "DRAFT" | "PUBLISH";
 }
 export const getNotices = () => request<Notice[]>("/api/notices");
 export const createNotice = (b: NoticeInput) => request<Notice>("/api/notices", { method: "POST", body: JSON.stringify(b) });
 export const updateNotice = (id: number, b: NoticeInput) =>
   request<Notice>(`/api/notices/${id}`, { method: "PUT", body: JSON.stringify(b) });
 export const deleteNotice = (id: number) => request<void>(`/api/notices/${id}`, { method: "DELETE" });
+export const publishNotice = (id: number) => request<Notice>(`/api/notices/${id}/publish`, { method: "POST" });
+export const unpublishNotice = (id: number) => request<Notice>(`/api/notices/${id}/draft`, { method: "POST" });
 
 // ---- Payment claims (treasurer) ----
 export interface StaffClaim {
@@ -468,3 +473,13 @@ export const addMember = (flatId: number, b: MemberInput) =>
 export const updateMember = (id: number, b: MemberInput) =>
   request<MemberView>(`/api/members/people/${id}`, { method: "PUT", body: JSON.stringify(b) });
 export const removeMember = (id: number) => request<void>(`/api/members/people/${id}`, { method: "DELETE" });
+
+// ---- Approvals (Chairman) ----
+export interface ApprovalItem {
+  type: "NOTICE"; id: number; title: string; meta: string; summary: string;
+  submittedBy: string; submittedAt: string | null; amount: number | null;
+}
+export const getApprovals = () => request<ApprovalItem[]>("/api/approvals");
+export const approveNotice = (id: number) => request<void>(`/api/approvals/notices/${id}/approve`, { method: "POST" });
+export const rejectNotice = (id: number, reason: string) =>
+  request<void>(`/api/approvals/notices/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
