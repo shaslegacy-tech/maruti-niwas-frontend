@@ -6,6 +6,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Maruti Niwas · Society Accounts",
   description: "Maintenance collection, income and expenses for Maruti Niwas society",
+  icons: {
+    icon: [
+      { url: "/mnh.png" },
+      { url: "/mng.png", type: "image/png" },
+    ],
+    apple: "/mng.png",
+  },
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };

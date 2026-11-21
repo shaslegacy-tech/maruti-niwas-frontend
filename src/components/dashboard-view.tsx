@@ -1,10 +1,11 @@
-import { BadgeCheck, Clock, Inbox, Landmark, MessageSquareWarning, TrendingDown, Users } from "lucide-react";
+import { BadgeCheck, Clock, Inbox, Landmark, MessageSquareWarning, ShieldAlert, TrendingDown, Users } from "lucide-react";
 import Link from "next/link";
 import { CashFlowChart } from "@/components/cash-flow-chart";
 import { RecentFeed } from "@/components/recent-feed";
 import { StatCard } from "@/components/stat-card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getApprovalsSummary, getClaimsSummary, getComplaintsSummary, getDashboard, getReviewSummary } from "@/lib/api.server";
+import { getApprovalsSummary, getBackupStatus, getClaimsSummary, getComplaintsSummary, getDashboard, getReviewSummary } from "@/lib/api.server";
+import { backupProblem } from "@/lib/backup";
 import { inr } from "@/lib/format";
 
 export async function DashboardView({ showClaims = true, showApprovals = false }: { showClaims?: boolean; showApprovals?: boolean } = {}) {
@@ -12,7 +13,9 @@ export async function DashboardView({ showClaims = true, showApprovals = false }
   const claims = showClaims ? await getClaimsSummary() : { pending: 0 };
   const complaints = await getComplaintsSummary();
   const approvals = showApprovals ? await getApprovalsSummary() : { pending: 0 };
-  const review = showClaims ? await getReviewSummary() : null;      // the treasurer sees where the Chairman stands on larger entries
+  const review = showClaims ? await getReviewSummary() : null;
+  // A failing status check must never break the dashboard itself.
+  const backup = showClaims ? backupProblem(await getBackupStatus().catch(() => null)) : null;      // the treasurer sees where the Chairman stands on larger entries
   const rate = d.totalFlats ? d.flatsPaid / d.totalFlats : 0;
 
   return (
@@ -41,6 +44,14 @@ export async function DashboardView({ showClaims = true, showApprovals = false }
           <span><b>{complaints.active}</b> open complaint{complaints.active > 1 ? "s" : ""} from residents</span>
           <span className="ml-auto text-xs underline">Open</span>
         </Link>
+      )}
+
+      {backup && (
+        <div role="alert" className={`mb-4 flex items-center gap-3 rounded-xl px-4 py-3 text-sm ${
+          backup.severity === "error" ? "bg-expense/10 text-expense" : "bg-warn/10 text-warn"}`}>
+          <ShieldAlert className="size-4 shrink-0" />
+          <span><b>Backups:</b> {backup.message}</span>
+        </div>
       )}
 
       {review && review.rejected > 0 && (

@@ -556,3 +556,11 @@ export const approveTransaction = (id: number) => request<void>(`/api/approvals/
 export const rejectTransaction = (id: number, reason: string) =>
   request<void>(`/api/approvals/transactions/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
 export interface ReviewSummary { pending: number; rejected: number; threshold: number }
+
+// ---- Backup health (treasurer) ----
+export interface BackupStatus {
+  ok?: boolean; error?: string | null; lastSuccessAt?: string | null; file?: string; sizeBytes?: number;
+  encrypted?: boolean; offsite?: "ok" | "failed" | "skipped";
+  lastVerifiedAt?: string | null; lastVerifyOk?: boolean | null; lastVerifyError?: string | null;
+}
+export interface BackupStatusResponse { configured: boolean; readable?: boolean; status?: BackupStatus; serverTime?: string }
